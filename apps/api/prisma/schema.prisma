@@ -1,0 +1,306 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Camada por cliente (isolada por clienteId)
+// ─────────────────────────────────────────────────────────────
+
+enum ModoOperacao {
+  COPILOTO
+  AUTOPILOT
+}
+
+enum Papel {
+  ADMIN
+  VENDEDOR
+}
+
+model Cliente {
+  id                  String       @id @default(cuid())
+  nome                String
+  plano               String       @default("piloto")
+  modoOperacao        ModoOperacao @default(COPILOTO)
+  vozMarca            String       @default("consultivo")
+  assinaturaEmail     String?
+  calendarioProvedor  String?
+  calendarioConectado Boolean      @default(false)
+  condicoesParada     String[]     @default(["RESPONDEU", "OPT_OUT", "REUNIAO_MARCADA"])
+  taxaConversaoHist   Float        @default(0.3)
+  criadoEm            DateTime     @default(now())
+
+  usuarios Usuario[]
+  icp      PerfilICP?
+  leads    Lead[]
+  cadencia PassoCadencia[]
+}
+
+model Usuario {
+  id        String   @id @default(cuid())
+  clienteId String
+  nome      String
+  email     String   @unique
+  senhaHash String
+  papel     Papel    @default(VENDEDOR)
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now())
+
+  cliente   Cliente   @relation(fields: [clienteId], references: [id])
+  leads     Lead[]
+  reunioes  Reuniao[]
+  aprovadas Mensagem[] @relation("aprovador")
+
+  @@index([clienteId])
+}
+
+model PerfilICP {
+  id              String   @id @default(cuid())
+  clienteId       String   @unique
+  cnaes           String[] // códigos CNAE aceitos (ex.: "4120400")
+  portes          String[] // "MICRO EMPRESA" | "EMPRESA DE PEQUENO PORTE" | "DEMAIS"
+  cidadeBase      String
+  ufBase          String
+  latBase         Float
+  lngBase         Float
+  raioKm          Int
+  idadeMinAnos    Int      @default(0)
+  idadeMaxAnos    Int      @default(50)
+  situacaoExigida String   @default("ATIVA")
+  fontesAtivas    String[] @default(["CNO", "PNCP", "CNPJ_NOVO"])
+
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+}
+
+model PassoCadencia {
+  id        String @id @default(cuid())
+  clienteId String
+  ordem     Int
+  dia       Int
+  canal     Canal
+  titulo    String
+
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+
+  @@index([clienteId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Camada compartilhada: cache de dado público + supressão global
+// ─────────────────────────────────────────────────────────────
+
+enum CodigoGatilho {
+  CNO
+  PNCP
+  CNPJ_NOVO
+}
+
+model TipoDeGatilho {
+  id                String        @id @default(cuid())
+  codigo            CodigoGatilho @unique
+  nome              String
+  janelaFrescorDias Int
+  peso              Float
+
+  eventos EventoDeGatilho[]
+}
+
+model EmpresaAlvo {
+  id                  String   @id @default(cuid())
+  cnpj                String   @unique
+  razaoSocial         String
+  nomeFantasia        String?
+  cnae                String
+  cnaeDescricao       String
+  porte               String
+  situacao            String
+  dataInicioAtividade DateTime
+  uf                  String
+  municipio           String
+  bairro              String?
+  lat                 Float?
+  lng                 Float?
+  telefone            String?
+  email               String?
+  qsa                 Json     @default("[]")
+  atualizadoEm        DateTime @updatedAt
+
+  eventos  EventoDeGatilho[]
+  contatos Contato[]
+  leads    Lead[]
+}
+
+model EventoDeGatilho {
+  id          String   @id @default(cuid())
+  externalId  String   @unique // nº CNO / numeroControlePNCP / cnpj+data
+  empresaId   String
+  tipoId      String
+  detectadoEm DateTime
+  resumo      String
+  dadosBrutos Json
+
+  empresa EmpresaAlvo   @relation(fields: [empresaId], references: [id])
+  tipo    TipoDeGatilho @relation(fields: [tipoId], references: [id])
+  leads   Lead[]
+
+  @@index([empresaId])
+}
+
+model Contato {
+  id        String  @id @default(cuid())
+  empresaId String
+  nome      String
+  cargo     String?
+  email     String?
+  telefone  String?
+
+  empresa   EmpresaAlvo @relation(fields: [empresaId], references: [id])
+  mensagens Mensagem[]
+
+  @@index([empresaId])
+}
+
+/// Lista global de supressão (opt-out): vale para TODOS os clientes.
+model Supressao {
+  id       String   @id @default(cuid())
+  email    String?  @unique
+  telefone String?  @unique
+  motivo   String
+  criadoEm DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────────────────────
+// Lead e ciclo comercial (por cliente)
+// ─────────────────────────────────────────────────────────────
+
+enum EstagioLead {
+  DETECTADO
+  APTO
+  AGUARDANDO_APROVACAO
+  EM_CADENCIA
+  ENGAJADO
+  QUALIFICANDO
+  REUNIAO_MARCADA
+  REUNIAO_REALIZADA
+  GANHO
+  PERDIDO
+  SUPRIMIDO
+  DESQUALIFICADO
+  SEM_CONTATO
+  NUTRICAO
+  RECICLADO
+}
+
+model Lead {
+  id                  String      @id @default(cuid())
+  clienteId           String
+  empresaId           String
+  eventoId            String // gatilho principal (o mais recente que originou/reciclou o lead)
+  estagio             EstagioLead @default(DETECTADO)
+  scorePrioridade     Float       @default(0)
+  forcaFit            Float       @default(0)
+  donoId              String?
+  necessidade         Boolean     @default(false)
+  momento             Boolean     @default(false)
+  encaixe             Boolean     @default(false)
+  qualificacaoForcada Boolean     @default(false)
+  criadoEm            DateTime    @default(now())
+  atualizadoEm        DateTime    @updatedAt
+
+  cliente   Cliente         @relation(fields: [clienteId], references: [id])
+  empresa   EmpresaAlvo     @relation(fields: [empresaId], references: [id])
+  evento    EventoDeGatilho @relation(fields: [eventoId], references: [id])
+  dono      Usuario?        @relation(fields: [donoId], references: [id])
+  mensagens Mensagem[]
+  reunioes  Reuniao[]
+  desfecho  Desfecho?
+
+  @@unique([clienteId, empresaId])
+  @@index([clienteId, estagio])
+}
+
+enum Canal {
+  EMAIL
+  WHATSAPP
+}
+
+enum Direcao {
+  SAIDA
+  ENTRADA
+}
+
+enum StatusMensagem {
+  RASCUNHO
+  APROVADA
+  ENVIADA
+  RESPONDIDA
+  REJEITADA
+}
+
+model Mensagem {
+  id            String         @id @default(cuid())
+  leadId        String
+  contatoId     String?
+  canal         Canal
+  direcao       Direcao
+  status        StatusMensagem
+  assunto       String?
+  conteudo      String
+  geradaPorIA   Boolean        @default(false)
+  passo         Int?
+  quente        Boolean        @default(false)
+  aprovadaPorId String?
+  criadoEm      DateTime       @default(now())
+  enviadaEm     DateTime?
+
+  lead       Lead     @relation(fields: [leadId], references: [id])
+  contato    Contato? @relation(fields: [contatoId], references: [id])
+  aprovadaPor Usuario? @relation("aprovador", fields: [aprovadaPorId], references: [id])
+
+  @@index([leadId])
+  @@index([status])
+}
+
+enum StatusReuniao {
+  AGENDADA
+  REALIZADA
+  CANCELADA
+  NO_SHOW
+}
+
+model Reuniao {
+  id         String        @id @default(cuid())
+  leadId     String
+  vendedorId String?
+  inicio     DateTime
+  fim        DateTime
+  status     StatusReuniao @default(AGENDADA)
+  briefing   String
+  criadoEm   DateTime      @default(now())
+
+  lead     Lead     @relation(fields: [leadId], references: [id])
+  vendedor Usuario? @relation(fields: [vendedorId], references: [id])
+
+  @@index([leadId])
+}
+
+enum ResultadoDesfecho {
+  REUNIAO_REALIZADA
+  NEGOCIO_FECHADO
+  PERDIDO
+  DESQUALIFICADO
+}
+
+model Desfecho {
+  id        String            @id @default(cuid())
+  leadId    String            @unique
+  resultado ResultadoDesfecho
+  motivo    String?
+  criadoEm  DateTime          @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id])
+}
