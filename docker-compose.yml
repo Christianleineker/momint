@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: momint-db
+    environment:
+      POSTGRES_USER: momint
+      POSTGRES_PASSWORD: momint
+      POSTGRES_DB: momint
+    ports:
+      - "5433:5432"
+    volumes:
+      - momint-pg:/var/lib/postgresql/data
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+volumes:
+  momint-pg:

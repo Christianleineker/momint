@@ -1,0 +1,18 @@
+{
+  "name": "momint",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "db:up": "docker compose up -d db",
+    "db:setup": "npm run db:setup -w apps/api",
+    "dev": "concurrently -n api,web -c blue,magenta \"npm run dev -w apps/api\" \"npm run dev -w apps/web\"",
+    "test": "npm test -w apps/api",
+    "db:local": "node scripts/pg-local.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
