@@ -50,7 +50,7 @@ export interface EntradaBriefing {
 /** Briefing pré-reunião: contexto da empresa + gatilhos + qualificação. */
 export function gerarBriefing(inp: EntradaBriefing): string {
   const q = inp.qualificacao;
-  const marca = (ok: boolean) => (ok ? "✔" : "✖");
+  const marca = (ok: boolean) => (ok ? "[sim]" : "[nao]");
   const linhas = [
     `Empresa: ${inp.empresa.nome} — ${inp.empresa.cnaeDescricao}, ${titulo(inp.empresa.municipio)}, porte ${inp.empresa.porte.toLowerCase()}, ${Math.floor(inp.empresa.idadeAnos)} anos de atividade.`,
     `Por que agora: ${inp.gatilhos.map(descreverGatilho).join("; ")}.`,
