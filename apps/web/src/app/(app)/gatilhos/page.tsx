@@ -109,10 +109,10 @@ export default function GatilhosPage() {
         acoes={<Botao disabled={!carregado} onClick={novoGatilho}><Plus className="h-4 w-4" /> Novo gatilho</Botao>}
       />
       <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Metrica icone={Zap} rotulo="Gatilhos ativos" valor={carregado ? String(gatilhos.filter((g) => g.ativo).length) : "..."} tom="azul" comparacao={{ variacao: "+20%", periodo: "em relação ao mês anterior" }} />
-        <Metrica icone={FileText} rotulo="Novos hoje" valor={String(INDICADORES_DEMO.novosHoje)} tom="azul" comparacao={{ variacao: "+75%", periodo: "em relação a ontem" }} />
-        <Metrica icone={Users} rotulo="Leads gerados" valor={carregado ? gatilhos.reduce((soma, g) => soma + g.leads, 0).toLocaleString("pt-BR") : "..."} tom="azul" comparacao={{ variacao: "+42%", periodo: "em relação ao mês anterior" }} />
-        <Metrica icone={ChartNoAxesColumnIncreasing} rotulo="Taxa de conversão" valor={INDICADORES_DEMO.taxaConversao} tom="azul" comparacao={{ variacao: "+3 p.p.", periodo: "em relação ao mês anterior" }} />
+        <Metrica icone={Zap} rotulo="Gatilhos ativos" valor={carregado ? String(gatilhos.filter((g) => g.ativo).length) : "..."} tom="azul" />
+        <Metrica icone={FileText} rotulo="Novos hoje" valor={String(INDICADORES_DEMO.novosHoje)} tom="azul" />
+        <Metrica icone={Users} rotulo="Leads gerados" valor={carregado ? gatilhos.reduce((soma, g) => soma + g.leads, 0).toLocaleString("pt-BR") : "..."} tom="azul" />
+        <Metrica icone={ChartNoAxesColumnIncreasing} rotulo="Taxa de conversão" valor={INDICADORES_DEMO.taxaConversao} tom="azul" />
       </div>
       <div className="mb-5 flex gap-6 border-b border-slate-200" role="tablist" aria-label="Visualizações de gatilhos">
         {[{ id: "gatilhos", nome: "Meus gatilhos" }, { id: "eventos", nome: "Eventos detectados" }].map(({ id, nome }) => (
