@@ -1,5 +1,6 @@
 import { CalendarCheck, CheckCircle2, Clock, Flame, Handshake, TrendingUp, Users } from "lucide-react";
 import { Badge, Cabecalho, Card, CardTitulo, Esboco, FONTE_ROTULO, FONTE_TOM, Metrica } from "@/components/ui";
+import { DashboardAcoes } from "./DashboardAcoes";
 
 // TODO: substituir por GET /api/dashboard
 const ESTAGIOS = [
@@ -17,7 +18,10 @@ export default function DashboardPage() {
   const max = Math.max(...ESTAGIOS.map(([, n]) => n));
   return (
     <>
-      <Cabecalho titulo="Dashboard" subtitulo="Acompanhe o desempenho da sua operação em tempo real." />
+      <div className="relative">
+        <div className="pr-24"><Cabecalho titulo="Dashboard" subtitulo="Acompanhe o desempenho da sua operação em tempo real." /></div>
+        <div className="absolute right-0 top-0"><DashboardAcoes /></div>
+      </div>
       <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Metrica icone={Handshake} rotulo="Reunião → Negócio" valor="45%" detalhe="9 de 20 reuniões" tom="verde" destaque />
         <Metrica icone={CalendarCheck} rotulo="Reuniões marcadas (mês)" valor="3" tom="azul" />
