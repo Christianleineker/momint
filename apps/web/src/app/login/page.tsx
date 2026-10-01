@@ -1,3 +1,8 @@
+"use client";
+
+import type { FormEvent } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRight, BarChart3, Lock, Mail, MessageCircle, Users, Zap } from "lucide-react";
 import { Logo } from "@/components/ui";
 
@@ -8,6 +13,39 @@ const DESTAQUES = [
 ];
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [erro, setErro] = useState("");
+  const [carregando, setCarregando] = useState(false);
+
+  async function entrar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setErro("");
+    setCarregando(true);
+
+    const dados = new FormData(event.currentTarget);
+    const email = String(dados.get("email") ?? "").trim();
+    const senha = String(dados.get("senha") ?? "");
+
+    try {
+      const resposta = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, senha }),
+      });
+
+      if (!resposta.ok) {
+        const corpo = (await resposta.json().catch(() => null)) as { erro?: string } | null;
+        setErro(corpo?.erro ?? "Não foi possível entrar. Confira seus dados e tente novamente.");
+        return;
+      }
+
+      router.push("/dashboard");
+      router.refresh();
+    } finally {
+      setCarregando(false);
+    }
+  }
+
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="hidden flex-col justify-center gap-10 bg-navy px-16 text-white lg:flex">
@@ -32,8 +70,7 @@ export default function LoginPage() {
       </div>
 
       <div className="flex items-center justify-center p-6">
-        {/* TODO: POST /api/auth/login e redirecionar para /dashboard */}
-        <form className="w-full max-w-md space-y-5 rounded-2xl bg-white p-10 shadow-lg">
+        <form onSubmit={entrar} className="w-full max-w-md space-y-5 rounded-2xl bg-white p-10 shadow-lg">
           <div className="flex justify-center">
             <Logo claro={false} />
           </div>
@@ -45,16 +82,21 @@ export default function LoginPage() {
             <span className="text-sm font-medium">E-mail</span>
             <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5">
               <Mail className="h-4 w-4 text-slate-400" />
-              <input type="email" placeholder="seu@email.com" className="flex-1 outline-none" />
+              <input name="email" type="email" placeholder="seu@email.com" autoComplete="email" required className="flex-1 outline-none" />
             </div>
           </label>
           <label className="block">
             <span className="text-sm font-medium">Senha</span>
             <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5">
               <Lock className="h-4 w-4 text-slate-400" />
-              <input type="password" placeholder="Digite sua senha" className="flex-1 outline-none" />
+              <input name="senha" type="password" placeholder="Digite sua senha" autoComplete="current-password" required className="flex-1 outline-none" />
             </div>
           </label>
+          {erro && (
+            <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+              {erro}
+            </p>
+          )}
           <div className="flex items-center justify-between gap-4">
             <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
               <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-acento focus:ring-acento" />
@@ -64,8 +106,12 @@ export default function LoginPage() {
               Esqueci a senha?
             </button>
           </div>
-          <button type="button" className="flex w-full items-center justify-center gap-2 rounded-lg bg-acento py-3 font-medium text-white">
-            Entrar <ArrowRight className="h-4 w-4" />
+          <button
+            type="submit"
+            disabled={carregando}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-acento py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {carregando ? "Entrando..." : "Entrar"} <ArrowRight className="h-4 w-4" />
           </button>
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-slate-200" />
