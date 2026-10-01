@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowRight, BarChart3, ChartNoAxesColumnIncreasing, Lock, LockKeyhole, Mail, MessageCircle, Server, ShieldCheck, Users, Zap } from "lucide-react";
 import { Logo } from "@/components/ui";
@@ -54,38 +55,42 @@ export default function LoginPage() {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      <div className="hidden flex-col justify-center gap-10 bg-navy px-16 text-white lg:flex">
-        <Logo />
-        <p className="text-xs tracking-[0.3em] text-slate-400">RELACIONAMENTO • PROCESSOS • RESULTADOS</p>
-        <h1 className="text-5xl font-bold leading-tight">
-          Mais oportunidades <br />para <span className="text-sky-400">o seu negócio</span>
-        </h1>
-        <h1 className="font-bold leading-tight tracking-[0.2em] text-slate-300">
-          Centralize seus leads, automatize seu processo <br /> comercial e acompanhe cada etapa em tempo real,<br /> com o Momint.
-        </h1>
-        <ul className="space-y-6">
-          {DESTAQUES.map(({ icone: Icone, titulo, texto }) => (
-            <li key={titulo} className="flex gap-4">
-              <div className="rounded-xl bg-white/10 p-3">
-                <Icone className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="font-semibold">{titulo}</p>
-                <p className="text-sm text-slate-300">{texto}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-        <div className="flex w-fit max-w-full items-center gap-4 rounded-lg border border-sky-300/15 bg-white/5 px-5 py-4 shadow-lg">
-          <ChartNoAxesColumnIncreasing
-            aria-hidden="true"
-            strokeWidth={4}
-            strokeLinecap="butt"
-            className="h-9 w-9 shrink-0 text-sky-400 [&_line:nth-child(1)]:stroke-sky-500 [&_line:nth-child(2)]:stroke-blue-500 [&_line:nth-child(3)]:stroke-cyan-400"
-          />
-          <p className="text-sm leading-relaxed text-slate-200">
-            Empresas que usam o Momint<br /> aceleram seus resultados
+      <div className="relative isolate hidden overflow-hidden bg-navy px-10 py-12 text-white lg:flex lg:flex-col lg:justify-center 2xl:px-16">
+        <Image src="/images/login-office.webp" alt="" fill priority sizes="(min-width: 1024px) 50vw, 1px" className="object-cover object-left" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(7,23,50,0.55)_0%,rgba(7,23,50,0.3)_55%,rgba(7,23,50,0.05)_100%)]" />
+        <div className="relative z-10 flex flex-col gap-8">
+          <Logo />
+          <p className="text-xs tracking-[0.3em] text-slate-400">RELACIONAMENTO • PROCESSOS • RESULTADOS</p>
+          <h1 className="max-w-md text-4xl font-bold leading-tight">
+            Mais oportunidades <br />para <span className="text-sky-400">o seu negócio</span>
+          </h1>
+          <p className="max-w-sm text-base leading-relaxed text-slate-200">
+            Centralize seus leads, automatize seu processo comercial e acompanhe cada etapa em tempo real, com o Momint.
           </p>
+          <ul className="max-w-sm space-y-6">
+            {DESTAQUES.map(({ icone: Icone, titulo, texto }) => (
+              <li key={titulo} className="flex gap-4">
+                <div className="rounded-xl bg-white/10 p-3">
+                  <Icone className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="font-semibold">{titulo}</p>
+                  <p className="text-sm text-slate-300">{texto}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="flex w-fit max-w-full items-center gap-4 rounded-lg border border-sky-300/15 bg-navy/50 px-5 py-4 shadow-lg backdrop-blur-sm">
+            <ChartNoAxesColumnIncreasing
+              aria-hidden="true"
+              strokeWidth={4}
+              strokeLinecap="butt"
+              className="h-9 w-9 shrink-0 text-sky-400 [&_line:nth-child(1)]:stroke-sky-500 [&_line:nth-child(2)]:stroke-blue-500 [&_line:nth-child(3)]:stroke-cyan-400"
+            />
+            <p className="text-sm leading-relaxed text-slate-200">
+              Empresas que usam o Momint<br /> aceleram seus resultados
+            </p>
+          </div>
         </div>
       </div>
 
