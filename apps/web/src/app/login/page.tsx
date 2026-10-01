@@ -3,13 +3,19 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, BarChart3, Lock, Mail, MessageCircle, Users, Zap } from "lucide-react";
+import { ArrowRight, BarChart3, ChartNoAxesColumnIncreasing, Lock, LockKeyhole, Mail, MessageCircle, Server, ShieldCheck, Users, Zap } from "lucide-react";
 import { Logo } from "@/components/ui";
 
 const DESTAQUES = [
-  { icone: Zap, titulo: "Gatilhos em tempo real", texto: "Obras, licitações e CNPJs novos monitorados." },
-  { icone: Users, titulo: "Leads no momento certo", texto: "Fit de ICP + gatilho fresco = prioridade." },
-  { icone: BarChart3, titulo: "Reuniões qualificadas", texto: "Da abordagem ao briefing, com revisão humana." },
+  { icone: Users, titulo: "Organize seus leads", texto: "Tenha controle total do seu funil de vendas." },
+  { icone: Zap, titulo: "Automatize sua operação", texto: "Ganhe tempo e aumente sua produtividade." },
+  { icone: BarChart3, titulo: "Tome decisões com dados", texto: "Acompanhe resultados em tempo real." },
+];
+
+const INFORMACOES = [
+  { icone: ShieldCheck, titulo: "Plataforma segura", texto: "Seus dados protegidos com criptografia.", cor: "bg-blue-100 text-blue-600" },
+  { icone: LockKeyhole, titulo: "Conformidade LGPD", texto: "Privacidade e segurança garantidas.", cor: "bg-emerald-100 text-emerald-600" },
+  { icone: Server, titulo: "Alta disponibilidade", texto: "99,9% de uptime para o seu negócio.", cor: "bg-violet-100 text-violet-600" },
 ];
 
 export default function LoginPage() {
@@ -52,7 +58,10 @@ export default function LoginPage() {
         <Logo />
         <p className="text-xs tracking-[0.3em] text-slate-400">RELACIONAMENTO • PROCESSOS • RESULTADOS</p>
         <h1 className="text-5xl font-bold leading-tight">
-          Timing vence <span className="text-sky-400">volume</span>
+          Mais oportunidades <br />para <span className="text-sky-400">o seu negócio</span>
+        </h1>
+        <h1 className="font-bold leading-tight tracking-[0.2em] text-slate-300">
+          Centralize seus leads, automatize seu processo <br /> comercial e acompanhe cada etapa em tempo real,<br /> com o Momint.
         </h1>
         <ul className="space-y-6">
           {DESTAQUES.map(({ icone: Icone, titulo, texto }) => (
@@ -67,10 +76,21 @@ export default function LoginPage() {
             </li>
           ))}
         </ul>
+        <div className="flex w-fit max-w-full items-center gap-4 rounded-lg border border-sky-300/15 bg-white/5 px-5 py-4 shadow-lg">
+          <ChartNoAxesColumnIncreasing
+            aria-hidden="true"
+            strokeWidth={4}
+            strokeLinecap="butt"
+            className="h-9 w-9 shrink-0 text-sky-400 [&_line:nth-child(1)]:stroke-sky-500 [&_line:nth-child(2)]:stroke-blue-500 [&_line:nth-child(3)]:stroke-cyan-400"
+          />
+          <p className="text-sm leading-relaxed text-slate-200">
+            Empresas que usam o Momint<br /> aceleram seus resultados
+          </p>
+        </div>
       </div>
 
-      <div className="flex items-center justify-center p-6">
-        <form onSubmit={entrar} className="w-full max-w-md space-y-5 rounded-2xl bg-white p-10 shadow-lg">
+      <div className="flex flex-col items-center justify-center gap-8 p-6">
+        <form onSubmit={entrar} className="w-full max-w-lg space-y-5 rounded-2xl bg-white p-6 shadow-lg sm:p-10">
           <div className="flex justify-center">
             <Logo claro={false} />
           </div>
@@ -82,14 +102,14 @@ export default function LoginPage() {
             <span className="text-sm font-medium">E-mail</span>
             <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5">
               <Mail className="h-4 w-4 text-slate-400" />
-              <input name="email" type="email" placeholder="seu@email.com" autoComplete="email" required className="flex-1 outline-none" />
+              <input name="email" type="email" placeholder="seu@email.com" autoComplete="email" required className="min-w-0 flex-1 outline-none" />
             </div>
           </label>
           <label className="block">
             <span className="text-sm font-medium">Senha</span>
             <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5">
               <Lock className="h-4 w-4 text-slate-400" />
-              <input name="senha" type="password" placeholder="Digite sua senha" autoComplete="current-password" required className="flex-1 outline-none" />
+              <input name="senha" type="password" placeholder="Digite sua senha" autoComplete="current-password" required className="min-w-0 flex-1 outline-none" />
             </div>
           </label>
           {erro && (
@@ -123,6 +143,19 @@ export default function LoginPage() {
             Falar com o suporte
           </button>
         </form>
+        <ul className="grid w-full max-w-xl grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-0">
+          {INFORMACOES.map(({ icone: Icone, titulo, texto, cor }) => (
+            <li key={titulo} className="flex min-w-0 items-start gap-3 border-slate-200 sm:gap-2 sm:px-3 sm:first:pl-0 sm:last:pr-0 sm:[&:not(:first-child)]:border-l">
+              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${cor}`}>
+                <Icone aria-hidden="true" className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold leading-4 text-navy">{titulo}</p>
+                <p className="mt-1 text-xs leading-4 text-slate-500">{texto}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
