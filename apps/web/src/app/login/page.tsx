@@ -39,7 +39,7 @@ export default function LoginPage() {
           </div>
           <div className="text-center">
             <h2 className="text-2xl font-bold text-navy">Entrar na plataforma</h2>
-            <p className="text-sm text-slate-500">Acompanhe gatilhos, leads e reuniões.</p>
+            <p className="text-sm text-slate-500">Acesse sua conta para acompanhar leads, reuniões e automações.</p>
           </div>
           <label className="block">
             <span className="text-sm font-medium">E-mail</span>
@@ -54,6 +54,12 @@ export default function LoginPage() {
               <Lock className="h-4 w-4 text-slate-400" />
               <input type="password" placeholder="Digite sua senha" className="flex-1 outline-none" />
             </div>
+          </label>
+          <label className="block">
+            <span className="text-sm font-medium">Esqueci minha senha</span>
+          </label>
+          <label className="block">
+            <span className="text-sm font-medium">Lembrar de min</span>
           </label>
           <button type="button" className="flex w-full items-center justify-center gap-2 rounded-lg bg-acento py-3 font-medium text-white">
             Entrar <ArrowRight className="h-4 w-4" />

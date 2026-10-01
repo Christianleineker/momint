@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bot, Calendar, ChevronDown, Filter, Home, Send, Settings, Target, Zap } from "lucide-react";
+import { useState } from "react";
+import { Bot, Calendar, ChevronDown, Filter, Home, LogOut, Send, Settings, Target, UserPen, Zap } from "lucide-react";
 import { Logo } from "./ui";
 
 const ITENS = [
@@ -17,6 +18,13 @@ const ITENS = [
 
 export function Sidebar({ pendentes = 0 }: { pendentes?: number }) {
   const path = usePathname();
+  const [menuAberto, setMenuAberto] = useState(false);
+
+  async function sair() {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
+    window.location.href = "/login";
+  }
+
   return (
     <aside className="flex w-64 shrink-0 flex-col bg-navy text-slate-200">
       <div className="px-6 py-7">
@@ -38,13 +46,44 @@ export function Sidebar({ pendentes = 0 }: { pendentes?: number }) {
           );
         })}
       </nav>
-      <div className="flex items-center gap-3 border-t border-white/10 px-5 py-5">
-        <div className="grid h-10 w-10 place-items-center rounded-full bg-acento font-semibold text-white">GI</div>
-        <div className="flex-1">
-          <p className="text-sm font-medium text-white">Gestor ImperSul</p>
-          <p className="text-xs text-slate-400">Gestor de equipe</p>
-        </div>
-        <ChevronDown className="h-4 w-4" />
+      <div className="border-t border-white/10 px-5 py-5">
+        <button
+          type="button"
+          onClick={() => setMenuAberto((aberto) => !aberto)}
+          aria-expanded={menuAberto}
+          aria-haspopup="menu"
+          className="flex w-full items-center gap-3 rounded-lg text-left transition hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-acento/60"
+        >
+          <div className="grid h-10 w-10 place-items-center rounded-full bg-acento font-semibold text-white">GI</div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-white">Gestor ImperSul</p>
+            <p className="text-xs text-slate-400">Gestor de equipe</p>
+          </div>
+          <ChevronDown className={`h-4 w-4 transition ${menuAberto ? "rotate-180" : ""}`} />
+        </button>
+
+        {menuAberto && (
+          <div role="menu" className="mt-3 overflow-hidden rounded-lg border border-white/10 bg-navy-2 py-1 shadow-xl">
+            <Link
+              href="/configuracoes"
+              role="menuitem"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-slate-100 transition hover:bg-white/10"
+              onClick={() => setMenuAberto(false)}
+            >
+              <UserPen className="h-4 w-4" />
+              Editar perfil
+            </Link>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={sair}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-200 transition hover:bg-red-500/10 hover:text-red-100"
+            >
+              <LogOut className="h-4 w-4" />
+              Sair
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );
