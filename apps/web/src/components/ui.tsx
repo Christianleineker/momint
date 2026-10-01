@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import { TrendingUp, type LucideIcon } from "lucide-react";
 
 export function Logo({ claro = true }: { claro?: boolean }) {
   return (
@@ -58,19 +58,27 @@ const TONS = {
 } as const;
 export type Tom = keyof typeof TONS;
 
-export function Metrica({ icone: Icone, rotulo, valor, detalhe, tom = "azul", destaque }: { icone: LucideIcon; rotulo: string; valor: string; detalhe?: string; tom?: Tom; destaque?: boolean }) {
+export function Metrica({ icone: Icone, rotulo, valor, detalhe, tom = "azul", destaque, comparacao }: { icone: LucideIcon; rotulo: string; valor: string; detalhe?: string; tom?: Tom; destaque?: boolean; comparacao?: { variacao: string; periodo: string } }) {
   return (
-    <Card className={destaque ? "ring-2 ring-acento/40" : ""}>
-      <div className="flex items-center gap-4">
-        <div className={`rounded-xl p-3 ${TONS[tom]}`}>
-          <Icone className="h-6 w-6" />
+    <Card className={`${destaque ? "ring-2 ring-acento/40" : ""} ${comparacao ? "flex h-full flex-col" : ""}`}>
+      <div className={`flex items-center ${comparacao ? "gap-3" : "gap-4"}`}>
+        <div className={`shrink-0 rounded-xl p-3 ${TONS[tom]}`}>
+          <Icone aria-hidden="true" className="h-6 w-6" />
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm text-slate-600">{rotulo}</p>
-          <p className="text-3xl font-bold text-navy">{valor}</p>
+          <p className={`${comparacao ? "text-2xl" : "text-3xl"} font-bold tabular-nums text-navy`}>{valor}</p>
           {detalhe && <p className="text-xs text-slate-500">{detalhe}</p>}
         </div>
       </div>
+      {comparacao && (
+        <div className="mt-auto flex min-h-11 items-center gap-2 pt-3">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-600">
+            <TrendingUp aria-hidden="true" className="h-3.5 w-3.5" />{comparacao.variacao}
+          </span>
+          <span className="min-w-0 text-[10px] leading-4 text-slate-500">{comparacao.periodo}</span>
+        </div>
+      )}
     </Card>
   );
 }

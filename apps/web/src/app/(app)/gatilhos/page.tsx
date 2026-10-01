@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Building2, FileText, Pause, Plus, Search, Users, Zap } from "lucide-react";
+import { Building2, ChartNoAxesColumnIncreasing, FileText, Plus, Search, Users, Zap } from "lucide-react";
 import { Badge, Botao, Cabecalho, Card, CardTitulo, FONTE_ROTULO, FONTE_TOM, Metrica, PRIORIDADE_ROTULO, PRIORIDADE_TOM } from "@/components/ui";
 import { DialogoGatilho, MenuGatilho } from "./GatilhoAcoes";
 import type { Acao, Dialogo, Gatilho } from "./GatilhoAcoes";
@@ -14,6 +14,8 @@ const GATILHOS_INICIAIS: Gatilho[] = [
   { id: "cnpj", nome: "Nova empresa no CNPJ", descricao: "Empresas abertas no segmento de construção", fonte: "CNPJ_NOVO", criterio: "Novo CNPJ registrado", responsavel: "Gestor ImperSul", ativo: false, ultimaOcorrencia: "há 1 dia", leads: 38 },
 ];
 const ICONES = { CNO: Building2, PNCP: FileText, CNPJ_NOVO: Users };
+// Valores de demonstração até integrar os indicadores e o histórico da API.
+const INDICADORES_DEMO = { novosHoje: 28, taxaConversao: "18%" };
 
 function gatilhoValido(valor: unknown): valor is Gatilho {
   if (!valor || typeof valor !== "object") return false;
@@ -103,13 +105,14 @@ export default function GatilhosPage() {
     <>
       <Cabecalho
         titulo="Gatilhos"
-        subtitulo="Gerencie os sinais que identificam novas oportunidades de negócio."
+        subtitulo="Monitore eventos e sinais que podem gerar novas oportunidades."
         acoes={<Botao disabled={!carregado} onClick={novoGatilho}><Plus className="h-4 w-4" /> Novo gatilho</Botao>}
       />
-      <div className="mb-6 grid gap-4 md:grid-cols-3">
-        <Metrica icone={Zap} rotulo="Gatilhos ativos" valor={carregado ? String(gatilhos.filter((g) => g.ativo).length) : "..."} tom="azul" />
-        <Metrica icone={Pause} rotulo="Gatilhos pausados" valor={carregado ? String(gatilhos.filter((g) => !g.ativo).length) : "..."} tom="amarelo" />
-        <Metrica icone={Users} rotulo="Leads gerados" valor={carregado ? String(gatilhos.reduce((soma, g) => soma + g.leads, 0)) : "..."} tom="verde" />
+      <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Metrica icone={Zap} rotulo="Gatilhos ativos" valor={carregado ? String(gatilhos.filter((g) => g.ativo).length) : "..."} tom="azul" comparacao={{ variacao: "+20%", periodo: "em relação ao mês anterior" }} />
+        <Metrica icone={FileText} rotulo="Novos hoje" valor={String(INDICADORES_DEMO.novosHoje)} tom="azul" comparacao={{ variacao: "+75%", periodo: "em relação a ontem" }} />
+        <Metrica icone={Users} rotulo="Leads gerados" valor={carregado ? gatilhos.reduce((soma, g) => soma + g.leads, 0).toLocaleString("pt-BR") : "..."} tom="azul" comparacao={{ variacao: "+42%", periodo: "em relação ao mês anterior" }} />
+        <Metrica icone={ChartNoAxesColumnIncreasing} rotulo="Taxa de conversão" valor={INDICADORES_DEMO.taxaConversao} tom="azul" comparacao={{ variacao: "+3 p.p.", periodo: "em relação ao mês anterior" }} />
       </div>
       <div className="mb-5 flex gap-6 border-b border-slate-200" role="tablist" aria-label="Visualizações de gatilhos">
         {[{ id: "gatilhos", nome: "Meus gatilhos" }, { id: "eventos", nome: "Eventos detectados" }].map(({ id, nome }) => (
