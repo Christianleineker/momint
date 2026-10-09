@@ -5,4 +5,5 @@ export interface Sessao {
   sub: string;
   clienteId: string;
   papel: Papel;
+  versao?: number;
 }

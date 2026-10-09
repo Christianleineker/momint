@@ -8,6 +8,7 @@ import type { FontesPublicas } from "./ports/fontes-publicas.js";
 import type { Geocodificador } from "./ports/geocodificador.js";
 import type { HasherSenha } from "./ports/hasher.js";
 import type { Relogio } from "./ports/relogio.js";
+import type { Email } from "./ports/email.js";
 import { AbordagemService } from "./modules/abordagem/abordagem.service.js";
 import { AuthService } from "./modules/auth/auth.service.js";
 import { CadenciaService } from "./modules/cadencia/cadencia.service.js";
@@ -26,9 +27,12 @@ export interface Dependencias {
   relogio: Relogio;
   geocodificador?: Geocodificador;
   hasher?: HasherSenha;
+  email?: Email;
+  urlWeb?: string;
+  agoraAutenticacao?: () => Date;
 }
 
-export function criarContainer({ prisma, fontes, relogio, geocodificador = geocodificadorMunicipios, hasher = bcryptHasher }: Dependencias) {
+export function criarContainer({ prisma, fontes, relogio, geocodificador = geocodificadorMunicipios, hasher = bcryptHasher, email, urlWeb, agoraAutenticacao }: Dependencias) {
   const repos = criarRepositorios(prisma);
   const uow = new UnitOfWork(prisma);
 
@@ -39,7 +43,7 @@ export function criarContainer({ prisma, fontes, relogio, geocodificador = geoco
   const radar = new RadarService(repos, fontes, geocodificador, relogio, abordagem);
 
   return {
-    auth: new AuthService(repos, hasher),
+    auth: new AuthService(repos, hasher, uow, email, urlWeb, agoraAutenticacao),
     dashboard: new DashboardService(repos, relogio),
     radar,
     leads,

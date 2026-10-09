@@ -34,6 +34,10 @@ export class UsuarioRepository {
     return this.db.usuario.create({ data: dados, select: RESUMO });
   }
 
+  redefinirSenha(id: string, senhaHash: string) {
+    return this.db.usuario.update({ where: { id }, data: { senhaHash, versaoSessao: { increment: 1 } } });
+  }
+
   /** Atualiza só se o usuário pertencer ao cliente; retorna quantos foram alterados. */
   async atualizarDoCliente(clienteId: string, id: string, dados: Prisma.UsuarioUpdateManyMutationInput) {
     const { count } = await this.db.usuario.updateMany({ where: { id, clienteId }, data: dados });

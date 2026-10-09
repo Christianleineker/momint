@@ -3,9 +3,11 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, BarChart3, ChartNoAxesColumnIncreasing, Lock, LockKeyhole, Mail, MessageCircle, Server, ShieldCheck, Users, Zap } from "lucide-react";
+import { ArrowRight, BarChart3, ChartNoAxesColumnIncreasing, LockKeyhole, Mail, MessageCircle, Server, ShieldCheck, Users, Zap } from "lucide-react";
 import { Logo } from "@/components/ui";
+import { CampoSenha } from "@/components/CampoSenha";
 
 const DESTAQUES = [
   { icone: Users, titulo: "Organize seus leads", texto: "Tenha controle total do seu funil de vendas." },
@@ -48,6 +50,8 @@ export default function LoginPage() {
 
       router.push("/dashboard");
       router.refresh();
+    } catch {
+      setErro("Não foi possível conectar ao servidor. Tente novamente.");
     } finally {
       setCarregando(false);
     }
@@ -105,18 +109,12 @@ export default function LoginPage() {
           </div>
           <label className="block">
             <span className="text-sm font-medium">E-mail</span>
-            <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5">
-              <Mail className="h-4 w-4 text-slate-400" />
+            <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 transition focus-within:border-acento focus-within:ring-2 focus-within:ring-blue-100">
+              <Mail aria-hidden="true" className="h-4 w-4 text-slate-400" />
               <input name="email" type="email" placeholder="seu@email.com" autoComplete="email" required className="min-w-0 flex-1 outline-none" />
             </div>
           </label>
-          <label className="block">
-            <span className="text-sm font-medium">Senha</span>
-            <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5">
-              <Lock className="h-4 w-4 text-slate-400" />
-              <input name="senha" type="password" placeholder="Digite sua senha" autoComplete="current-password" required className="min-w-0 flex-1 outline-none" />
-            </div>
-          </label>
+          <CampoSenha />
           {erro && (
             <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
               {erro}
@@ -127,9 +125,9 @@ export default function LoginPage() {
               <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-acento focus:ring-acento" />
               Lembrar de mim
             </label>
-            <button type="button" className="text-sm font-medium text-acento transition hover:text-blue-700">
+            <Link href="/recuperar-senha" className="rounded text-sm font-medium text-acento transition hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-acento">
               Esqueci a senha?
-            </button>
+            </Link>
           </div>
           <button
             type="submit"

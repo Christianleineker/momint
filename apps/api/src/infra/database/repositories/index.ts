@@ -9,12 +9,14 @@ import { PerfilIcpRepository } from "./perfil-icp.repository.js";
 import { ReuniaoRepository } from "./reuniao.repository.js";
 import { SupressaoRepository } from "./supressao.repository.js";
 import { UsuarioRepository } from "./usuario.repository.js";
+import { RecuperacaoSenhaRepository } from "./recuperacao-senha.repository.js";
 
 /** Conjunto de repositórios ligados a um mesmo cliente de banco (ou transação). */
 export function criarRepositorios(db: DbClient) {
   return {
     clientes: new ClienteRepository(db),
     usuarios: new UsuarioRepository(db),
+    recuperacoes: new RecuperacaoSenhaRepository(db),
     icp: new PerfilIcpRepository(db),
     cadencia: new CadenciaRepository(db),
     empresas: new EmpresaRepository(db),

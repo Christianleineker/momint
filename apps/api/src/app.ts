@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import cookie from "@fastify/cookie";
 import jwt from "@fastify/jwt";
+import rateLimit from "@fastify/rate-limit";
 import type { Container } from "./container.js";
 import { autenticar, COOKIE_SESSAO } from "./infra/http/autenticacao.js";
 import { tratarErros } from "./infra/http/tratar-erros.js";
@@ -20,19 +21,22 @@ export interface OpcoesApp {
   container: Container;
   jwtSecret: string;
   logger?: boolean;
+  producao?: boolean;
 }
 
-export async function criarApp({ container: c, jwtSecret, logger = false }: OpcoesApp) {
+export async function criarApp({ container: c, jwtSecret, logger = false, producao = false }: OpcoesApp) {
   const app = Fastify({ logger });
 
   await app.register(cookie);
   await app.register(jwt, { secret: jwtSecret, cookie: { cookieName: COOKIE_SESSAO, signed: false } });
+  await app.register(rateLimit, { global: false });
+  app.decorate("validarSessao", (sessao) => c.auth.sessaoValida(sessao));
   app.setErrorHandler(tratarErros);
 
   app.get("/api/health", async () => ({ ok: true }));
 
   // Rotas públicas (login) + /auth/me com autenticação própria.
-  await app.register(authRoutes(c.auth), { prefix: "/api" });
+  await app.register(authRoutes(c.auth, producao), { prefix: "/api" });
 
   // Rotas autenticadas: todas recebem a sessão (clienteId) via JWT.
   await app.register(

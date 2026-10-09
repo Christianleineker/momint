@@ -46,6 +46,7 @@ model Usuario {
   nome      String
   email     String   @unique
   senhaHash String
+  versaoSessao Int @default(0)
   papel     Papel    @default(VENDEDOR)
   ativo     Boolean  @default(true)
   criadoEm  DateTime @default(now())
@@ -54,8 +55,17 @@ model Usuario {
   leads     Lead[]
   reunioes  Reuniao[]
   aprovadas Mensagem[] @relation("aprovador")
+  recuperacaoSenha RecuperacaoSenha?
 
   @@index([clienteId])
+}
+
+model RecuperacaoSenha {
+  usuarioId String @id
+  tokenHash String @unique
+  expiraEm DateTime
+  usadaEm DateTime?
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 }
 
 model PerfilICP {

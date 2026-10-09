@@ -9,6 +9,12 @@ declare module "@fastify/jwt" {
   }
 }
 
+declare module "fastify" {
+  interface FastifyInstance {
+    validarSessao: (sessao: Sessao) => Promise<boolean>;
+  }
+}
+
 export const COOKIE_SESSAO = "momint_token";
 
 /** Hook onRequest: exige sessão válida (JWT no cookie). */
@@ -18,6 +24,7 @@ export async function autenticar(req: FastifyRequest) {
   } catch {
     throw new NaoAutenticado("Não autenticado");
   }
+  if (!await req.server.validarSessao(req.user)) throw new NaoAutenticado("Sessão encerrada. Entre novamente.");
 }
 
 /** Hook preHandler: exige um dos papéis informados. */

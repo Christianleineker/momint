@@ -4,11 +4,12 @@ import { criarApp } from "./app.js";
 import { criarContainer, criarRelogio } from "./container.js";
 import { criarPrisma } from "./infra/database/prisma.js";
 import { criarFontesPublicas } from "./infra/fontes-publicas/index.js";
+import { criarEmail } from "./infra/email/email.js";
 
 const env = carregarEnv();
 const prisma = criarPrisma();
-const container = criarContainer({ prisma, fontes: criarFontesPublicas(env.DATA_MODE), relogio: criarRelogio(env.MOMINT_HOJE) });
-const app = await criarApp({ container, jwtSecret: env.JWT_SECRET, logger: env.NODE_ENV !== "test" });
+const container = criarContainer({ prisma, fontes: criarFontesPublicas(env.DATA_MODE), relogio: criarRelogio(env.MOMINT_HOJE), email: criarEmail(env), urlWeb: env.URL_WEB });
+const app = await criarApp({ container, jwtSecret: env.JWT_SECRET, logger: env.NODE_ENV !== "test", producao: env.NODE_ENV === "production" });
 
 const encerrar = async () => {
   await app.close();
