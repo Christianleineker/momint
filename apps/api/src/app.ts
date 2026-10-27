@@ -37,7 +37,7 @@ export async function criarApp({ container: c, jwtSecret, logger = false, produc
   app.get("/api/health", async () => ({ ok: true }));
 
   // Rotas públicas (login) + /auth/me com autenticação própria.
-  await app.register(authRoutes(c.auth, producao), { prefix: "/api" });
+  await app.register(authRoutes(c.auth, c.acesso, producao), { prefix: "/api" });
 
   // Rotas autenticadas: todas recebem a sessão (clienteId) via JWT.
   await app.register(

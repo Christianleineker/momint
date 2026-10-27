@@ -76,11 +76,12 @@ export class AuthService {
       if (!usuario?.ativo || usuario.versaoSessao !== (sessao.versao ?? 0) || usuario.papel !== sessao.papel || !usuario.cliente.ativo || usuario.cliente.contaCliente?.excluidoEm) throw new NaoAutenticado("Sessão encerrada. Entre novamente.");
       if (usuario.papel === "ADMIN" && dados.email !== EMAIL_ADMIN) throw new AcessoNegado("O e-mail do administrador geral é fixo.");
       if (usuario.papel !== "ADMIN" && dados.email === EMAIL_ADMIN) throw new AcessoNegado("E-mail reservado ao administrador geral.");
+      if (usuario.doisFatoresEmail && dados.email !== usuario.email) throw new EntradaInvalida("Desative a verificação em duas etapas antes de alterar o e-mail. Depois, ative-a novamente no novo endereço.");
       const credenciaisAlteradas = dados.email !== usuario.email || !!dados.novaSenha;
       if (credenciaisAlteradas && (!dados.senhaAtual || !await this.hasher.comparar(dados.senhaAtual, usuario.senhaHash))) throw new EntradaInvalida("Informe sua senha atual corretamente para alterar e-mail ou senha.");
       const alterados = await repos.usuarios.atualizarPerfil(usuario.id, usuario.versaoSessao, {
         nome: dados.nome, email: dados.email, telefone: dados.telefone,
-        ...(dados.novaSenha ? { senhaHash: await this.hasher.gerar(dados.novaSenha) } : {}),
+        ...(dados.novaSenha ? { senhaHash: await this.hasher.gerar(dados.novaSenha), primeiroAcessoPendente: false } : {}),
         ...(credenciaisAlteradas ? { versaoSessao: { increment: 1 } } : {}),
       });
       if (!alterados.count) throw new NaoAutenticado("Seu acesso foi atualizado. Entre novamente.");
@@ -97,6 +98,9 @@ export class AuthService {
       nome: u.nome,
       email: u.email,
       telefone: u.telefone,
+      primeiroAcessoPendente: u.primeiroAcessoPendente,
+      oferta2faPendente: u.oferta2faPendente,
+      doisFatoresEmail: u.doisFatoresEmail,
       papel: u.papel,
       cliente: { id: u.cliente.id, nome: u.cliente.nome, modoOperacao: u.cliente.modoOperacao, demonstrativo: u.cliente.demonstrativo },
       aprovacoesPendentes: await this.repos.mensagens.contarRascunhosDoCliente(u.clienteId),

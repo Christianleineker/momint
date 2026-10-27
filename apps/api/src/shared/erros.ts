@@ -15,6 +15,11 @@ export class EntradaInvalida extends ErroAplicacao {
   readonly codigo = "ENTRADA_INVALIDA";
 }
 
+export class ServicoIndisponivel extends ErroAplicacao {
+  readonly status = 503;
+  readonly codigo = "SERVICO_INDISPONIVEL";
+}
+
 export class NaoAutenticado extends ErroAplicacao {
   readonly status = 401;
   readonly codigo = "NAO_AUTENTICADO";

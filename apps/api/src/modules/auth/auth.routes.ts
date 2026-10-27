@@ -1,8 +1,10 @@
-import type { FastifyPluginAsync } from "fastify";
+import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import { z } from "zod";
 import { autenticar, COOKIE_SESSAO } from "../../infra/http/autenticacao.js";
 import type { AuthService } from "./auth.service.js";
 import { createHash } from "node:crypto";
+import type { AcessoService } from "./acesso.service.js";
+import type { Sessao } from "../../shared/sessao.js";
 
 const loginBody = z.object({ email: z.string().email(), senha: z.string().min(1) });
 const SETE_DIAS_S = 7 * 86_400;
@@ -16,10 +18,18 @@ const perfilBody = z.object({
   senhaAtual: z.string().max(200).optional(),
   novaSenha: z.string().min(12).max(72).refine(s => Buffer.byteLength(s, "utf8") <= 72).optional(),
 }).strict();
+const codigoBody = z.object({ codigo: z.string().regex(/^\d{6}$/) }).strict();
+const COOKIE_CODIGO = "momint_verificacao";
+const COOKIE_CONFIGURACAO = "momint_configuracao_2fa";
 
 export const authRoutes =
-  (auth: AuthService, secureCookie = false): FastifyPluginAsync =>
+  (auth: AuthService, acesso: AcessoService, secureCookie = false): FastifyPluginAsync =>
   async (app) => {
+    const opcoesCodigo = { path: "/api/auth", httpOnly: true, secure: secureCookie, sameSite: "lax" as const, maxAge: 300 };
+    function emitirSessao(sessao: Sessao, rep: FastifyReply) {
+      rep.setCookie(COOKIE_SESSAO, app.jwt.sign(sessao, { expiresIn: SETE_DIAS_S }), { path: "/", httpOnly: true, secure: secureCookie, sameSite: "lax", maxAge: SETE_DIAS_S });
+      rep.header("Cache-Control", "no-store");
+    }
     const envios = new Set<Promise<void>>();
     function acompanhar(envio: Promise<void>) {
       const tarefa = envio.catch(() => { app.log.warn("Não foi possível enviar o e-mail de autenticação."); });
@@ -31,25 +41,63 @@ export const authRoutes =
       const { email } = recuperacaoBody.parse(req.body);
       return `recuperacao-email:${createHash("sha256").update(email).digest("hex")}`;
     } });
-    app.post("/auth/login", async (req, rep) => {
+    app.post("/auth/login", { config: { rateLimit: { max: 30, timeWindow: "15 minutes" } } }, async (req, rep) => {
       const { email, senha } = loginBody.parse(req.body);
       const { sessao, nome } = await auth.autenticar(email, senha);
-      const token = app.jwt.sign(sessao, { expiresIn: SETE_DIAS_S });
-      rep.setCookie(COOKIE_SESSAO, token, { path: "/", httpOnly: true, secure: secureCookie, sameSite: "lax", maxAge: SETE_DIAS_S });
+      const desafio = await acesso.iniciarLogin(sessao);
+      if (desafio) {
+        rep.clearCookie(COOKIE_SESSAO, { path: "/", httpOnly: true, secure: secureCookie, sameSite: "lax" });
+        rep.setCookie(COOKIE_CODIGO, desafio.token, opcoesCodigo);
+        return rep.header("Cache-Control", "no-store").code(202).send({ requerCodigo: true, emailMascarado: desafio.emailMascarado });
+      }
+      emitirSessao(sessao, rep);
+      if (req.cookies[COOKIE_CODIGO]) rep.clearCookie(COOKIE_CODIGO, opcoesCodigo);
       return { id: sessao.sub, nome, papel: sessao.papel };
     });
 
     app.post("/auth/logout", async (_req, rep) => {
       rep.clearCookie(COOKIE_SESSAO, { path: "/", secure: secureCookie, httpOnly: true, sameSite: "lax" });
+      rep.clearCookie(COOKIE_CODIGO, opcoesCodigo);
+      rep.clearCookie(COOKIE_CONFIGURACAO, opcoesCodigo);
       return { ok: true };
     });
 
     app.get("/auth/me", { onRequest: autenticar }, async (req) => auth.perfil(req.user.sub));
 
+    app.get("/auth/login/pendente", async (req, rep) => rep.header("Cache-Control", "no-store").send(req.cookies[COOKIE_CODIGO] ? await acesso.loginPendente(req.cookies[COOKIE_CODIGO]) : null));
+    app.post("/auth/login/codigo", { config: { rateLimit: { max: 15, timeWindow: "1 minute" } } }, async (req, rep) => {
+      const { codigo } = codigoBody.parse(req.body);
+      const resultado = await acesso.verificar(req.cookies[COOKIE_CODIGO] ?? "", codigo, "LOGIN");
+      emitirSessao(resultado.sessao, rep); rep.clearCookie(COOKIE_CODIGO, opcoesCodigo);
+      return { id: resultado.sessao.sub, nome: resultado.nome, papel: resultado.sessao.papel };
+    });
+    app.post("/auth/login/reenviar", { config: { rateLimit: { max: 3, timeWindow: "15 minutes" } } }, async (req, rep) => {
+      const desafio = await acesso.reenviarLogin(req.cookies[COOKIE_CODIGO] ?? "");
+      rep.setCookie(COOKIE_CODIGO, desafio.token, opcoesCodigo);
+      return rep.header("Cache-Control", "no-store").send({ requerCodigo: true, emailMascarado: desafio.emailMascarado });
+    });
+    app.post("/auth/primeiro-acesso", { onRequest: autenticar, config: { rateLimit: { max: 10, timeWindow: "15 minutes" } } }, async (req, rep) => {
+      const dados = z.object({ manterSenha: z.boolean(), senhaAtual: z.string().max(200).optional(), novaSenha: novaSenhaBody.shape.senha.optional() }).strict().parse(req.body);
+      emitirSessao(await acesso.primeiroAcesso(req.user, dados), rep);
+      return auth.perfil(req.user.sub);
+    });
+    app.post("/auth/2fa/solicitar", { onRequest: autenticar, config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } }, async (req, rep) => {
+      const dados = z.object({ ativar: z.boolean(), senhaAtual: z.string().max(200).optional() }).strict().parse(req.body);
+      const desafio = await acesso.solicitarConfiguracao(req.user, dados.ativar, dados.senhaAtual);
+      rep.setCookie(COOKIE_CONFIGURACAO, desafio.token, opcoesCodigo);
+      return rep.header("Cache-Control", "no-store").send({ emailMascarado: desafio.emailMascarado });
+    });
+    app.post("/auth/2fa/confirmar", { onRequest: autenticar, config: { rateLimit: { max: 15, timeWindow: "1 minute" } } }, async (req, rep) => {
+      const { codigo } = codigoBody.parse(req.body);
+      const resultado = await acesso.verificar(req.cookies[COOKIE_CONFIGURACAO] ?? "", codigo, "CONFIGURACAO", req.user);
+      emitirSessao(resultado.sessao, rep); rep.clearCookie(COOKIE_CONFIGURACAO, opcoesCodigo);
+      return auth.perfil(req.user.sub);
+    });
+    app.post("/auth/2fa/adiar", { onRequest: autenticar }, async (req) => { await acesso.adiarOferta(req.user); return { ok: true }; });
+
     app.patch("/auth/perfil", { onRequest: autenticar, config: { rateLimit: { max: 10, timeWindow: "15 minutes" } } }, async (req, rep) => {
       const sessao = await auth.atualizarPerfil(req.user, perfilBody.parse(req.body));
-      const token = app.jwt.sign(sessao, { expiresIn: SETE_DIAS_S });
-      rep.setCookie(COOKIE_SESSAO, token, { path: "/", httpOnly: true, secure: secureCookie, sameSite: "lax", maxAge: SETE_DIAS_S });
+      emitirSessao(sessao, rep);
       return rep.header("Cache-Control", "no-store").send(await auth.perfil(sessao.sub));
     });
 

@@ -104,10 +104,11 @@ export class AdminService {
       const u = await tx.usuario.findFirst({ where: { id, papel: { not: "ADMIN" }, cliente: { demonstrativo: false, contaCliente: { excluidoEm: null } } }, include: { cliente: true } });
       if (!u?.cliente.contaClienteId) throw new NaoEncontrado("Usuário não encontrado");
       if (dados.email === EMAIL_ADMIN) throw new Conflito("E-mail reservado ao administrador geral.");
+      if (u.doisFatoresEmail && dados.email !== u.email) throw new Conflito("O titular deve desativar a verificação em duas etapas antes de alterar o e-mail.");
       await this.contaEditavel(tx, u.cliente.contaClienteId);
       const credenciaisAlteradas = dados.email !== u.email || !!senhaHash;
-      await tx.usuario.update({ where: { id }, data: { nome: dados.nome, email: dados.email, telefone: dados.telefone, senhaHash, ...(credenciaisAlteradas ? { versaoSessao: { increment: 1 } } : {}) } });
-      if (credenciaisAlteradas) await tx.recuperacaoSenha.deleteMany({ where: { usuarioId: id } });
+      await tx.usuario.update({ where: { id }, data: { nome: dados.nome, email: dados.email, telefone: dados.telefone, senhaHash, ...(senhaHash ? { primeiroAcessoPendente: true } : {}), ...(credenciaisAlteradas ? { versaoSessao: { increment: 1 } } : {}) } });
+      if (credenciaisAlteradas) { await tx.recuperacaoSenha.deleteMany({ where: { usuarioId: id } }); await tx.desafioEmail.deleteMany({ where: { usuarioId: id } }); }
       await tx.notificacaoAdmin.create({ data: { tipo: "USUARIO_ATUALIZADO", titulo: "Dados de usuário atualizados", texto: `${dados.nome}, do sistema ${u.cliente.nome}, teve seus dados de acesso atualizados.` } });
     });
   }
@@ -140,6 +141,7 @@ export class AdminService {
       await tx.cliente.updateMany({ where: { contaClienteId: id }, data: { ativo: false } });
       await tx.usuario.updateMany({ where: { cliente: { contaClienteId: id } }, data: { ativo: false, versaoSessao: { increment: 1 } } });
       await tx.recuperacaoSenha.deleteMany({ where: { usuario: { cliente: { contaClienteId: id } } } });
+      await tx.desafioEmail.deleteMany({ where: { usuario: { cliente: { contaClienteId: id } } } });
       await tx.notificacaoAdmin.create({ data: { tipo: "CLIENTE_EXCLUIDO", titulo: "Cliente excluído", texto: `${conta.nome} foi excluído e todos os seus acessos foram encerrados.` } });
     });
   }

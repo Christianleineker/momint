@@ -6,6 +6,7 @@ const schema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   DATABASE_URL: z.string().min(1),
   JWT_SECRET: z.string().min(1),
+  OTP_SECRET: z.string().min(32).optional(),
   URL_WEB: z.string().url().default("http://localhost:3000"),
   EMAIL_TRANSPORT: z.enum(["arquivo", "smtp"]).default("arquivo"),
   SMTP_HOST: z.string().optional(),

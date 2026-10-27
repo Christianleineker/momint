@@ -8,7 +8,7 @@ import { criarEmail } from "./infra/email/email.js";
 
 const env = carregarEnv();
 const prisma = criarPrisma();
-const container = criarContainer({ prisma, fontes: criarFontesPublicas(env.DATA_MODE), relogio: criarRelogio(env.MOMINT_HOJE), email: criarEmail(env), urlWeb: env.URL_WEB });
+const container = criarContainer({ prisma, fontes: criarFontesPublicas(env.DATA_MODE), relogio: criarRelogio(env.MOMINT_HOJE), email: criarEmail(env), urlWeb: env.URL_WEB, segredoOtp: env.OTP_SECRET });
 const app = await criarApp({ container, jwtSecret: env.JWT_SECRET, logger: env.NODE_ENV !== "test", producao: env.NODE_ENV === "production" });
 
 const encerrar = async () => {

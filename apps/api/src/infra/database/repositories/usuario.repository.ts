@@ -34,8 +34,9 @@ export class UsuarioRepository {
     return this.db.usuario.create({ data: dados, select: RESUMO });
   }
 
-  redefinirSenha(id: string, senhaHash: string) {
-    return this.db.usuario.update({ where: { id }, data: { senhaHash, versaoSessao: { increment: 1 } } });
+  async redefinirSenha(id: string, senhaHash: string) {
+    await this.db.desafioEmail.deleteMany({ where: { usuarioId: id } });
+    return this.db.usuario.update({ where: { id }, data: { senhaHash, primeiroAcessoPendente: false, versaoSessao: { increment: 1 } } });
   }
 
   atualizarPerfil(id: string, versaoSessao: number, dados: Prisma.UsuarioUpdateManyMutationInput) {

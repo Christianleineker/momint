@@ -1,13 +1,14 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, BarChart3, ChartNoAxesColumnIncreasing, LockKeyhole, Mail, MessageCircle, Server, ShieldCheck, Users, Zap } from "lucide-react";
 import { Logo } from "@/components/ui";
 import { CampoSenha } from "@/components/CampoSenha";
+import { enviar } from "@/lib/api";
 
 const DESTAQUES = [
   { icone: Users, titulo: "Organize seus leads", texto: "Tenha controle total do seu funil de vendas." },
@@ -25,6 +26,10 @@ export default function LoginPage() {
   const router = useRouter();
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
+  const [pendente, setPendente] = useState<{ emailMascarado: string } | null>(null);
+  const [reenvio, setReenvio] = useState(0);
+  useEffect(() => { let ativo = true; void fetch("/api/auth/login/pendente", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(d => { if (ativo && d?.requerCodigo) setPendente(d); }).catch(() => null); return () => { ativo = false; }; }, []);
+  useEffect(() => { if (!reenvio) return; const timer = window.setTimeout(() => setReenvio(reenvio - 1), 1000); return () => window.clearTimeout(timer); }, [reenvio]);
 
   async function entrar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -36,6 +41,10 @@ export default function LoginPage() {
     const senha = String(dados.get("senha") ?? "");
 
     try {
+      if (pendente) {
+        const perfil = await enviar<{ papel: string }>("/api/auth/login/codigo", "POST", { codigo: dados.get("codigo") });
+        router.push(perfil.papel === "ADMIN" ? "/acessos" : "/dashboard"); router.refresh(); return;
+      }
       const resposta = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -48,11 +57,12 @@ export default function LoginPage() {
         return;
       }
 
-      const perfil = await resposta.json() as { papel: string };
+      const perfil = await resposta.json() as { papel: string; requerCodigo?: boolean; emailMascarado: string };
+      if (perfil.requerCodigo) { setPendente(perfil); setReenvio(60); return; }
       router.push(perfil.papel === "ADMIN" ? "/acessos" : "/dashboard");
       router.refresh();
-    } catch {
-      setErro("Não foi possível conectar ao servidor. Tente novamente.");
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível conectar ao servidor. Tente novamente.");
     } finally {
       setCarregando(false);
     }
@@ -105,9 +115,10 @@ export default function LoginPage() {
             <Logo claro={false} />
           </div>
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-navy">Entrar na plataforma</h2>
-            <p className="text-sm text-slate-500">Acesse sua conta para acompanhar leads, reuniões e automações.</p>
+            <h2 className="text-2xl font-bold text-navy">{pendente ? "Verifique seu e-mail" : "Entrar na plataforma"}</h2>
+            <p className="text-sm text-slate-500">{pendente ? `Enviamos um código de uso único para ${pendente.emailMascarado}.` : "Acesse sua conta para acompanhar leads, reuniões e automações."}</p>
           </div>
+          {pendente ? <label className="block text-sm font-medium">Código de 6 dígitos<input name="codigo" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" minLength={6} maxLength={6} required autoFocus className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-3 text-center text-2xl tracking-[.5em] outline-none focus:border-acento" /><span className="mt-2 block text-xs font-normal leading-5 text-slate-500">O código expira em 5 minutos. Não compartilhe com outras pessoas.</span></label> : <>
           <label className="block">
             <span className="text-sm font-medium">E-mail</span>
             <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 transition focus-within:border-acento focus-within:ring-2 focus-within:ring-blue-100">
@@ -116,12 +127,13 @@ export default function LoginPage() {
             </div>
           </label>
           <CampoSenha />
+          </>}
           {erro && (
             <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
               {erro}
             </p>
           )}
-          <div className="flex items-center justify-between gap-4">
+          {!pendente && <div className="flex items-center justify-between gap-4">
             <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
               <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-acento focus:ring-acento" />
               Lembrar de mim
@@ -129,14 +141,15 @@ export default function LoginPage() {
             <Link href="/recuperar-senha" className="rounded text-sm font-medium text-acento transition hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-acento">
               Esqueci a senha?
             </Link>
-          </div>
+          </div>}
           <button
             type="submit"
             disabled={carregando}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-acento py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {carregando ? "Entrando..." : "Entrar"} <ArrowRight className="h-4 w-4" />
+            {carregando ? "Aguarde..." : pendente ? "Confirmar código e entrar" : "Entrar"} <ArrowRight className="h-4 w-4" />
           </button>
+          {pendente && <div className="flex flex-wrap justify-between gap-3 text-xs"><button type="button" disabled={carregando || reenvio > 0} className="text-acento disabled:text-slate-400" onClick={async () => { setCarregando(true); setErro(""); try { await enviar("/api/auth/login/reenviar", "POST"); setReenvio(60); } catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível reenviar."); } finally { setCarregando(false); } }}>{reenvio ? `Reenviar em ${reenvio}s` : "Reenviar código"}</button><button type="button" disabled={carregando} className="text-slate-500" onClick={async () => { await enviar("/api/auth/logout", "POST"); setPendente(null); setErro(""); }}>Usar outra conta</button></div>}
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-slate-200" />
             <span className="text-xs font-medium uppercase text-slate-400">ou</span>

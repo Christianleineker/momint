@@ -28,4 +28,14 @@ Os indicadores representam os cadastros atuais: clientes não excluídos, sistem
 
 ## Verificação
 
+## Primeiro acesso e segundo fator por e-mail
+
+Novos usuários escolhem no dashboard se mantêm a senha recebida ou definem outra (com confirmação da senha atual). Depois podem ativar o segundo fator ou adiar a escolha para Meu perfil. Instalações existentes não recebem novamente a escolha de senha inicial. Redefinições feitas pelo administrador reapresentam a escolha de senha e preservam o segundo fator já ativo.
+
+O código possui seis dígitos gerados por `crypto.randomInt`, expira em cinco minutos e admite cinco tentativas. O banco guarda o hash do identificador e um HMAC do código; o valor legível só é enviado ao e-mail do titular pelo transporte já configurado. O desafio fica associado ao propósito, usuário, e-mail e versão da sessão. O consumo é transacional e apaga o desafio. Reenvios aguardam um minuto e invalidam o código anterior. O cookie do desafio é HttpOnly e não equivale a uma sessão autenticada.
+
+Configure `OTP_SECRET` com um segredo aleatório de pelo menos 32 caracteres, fora do Git. Ele deve ser o mesmo entre reinícios e instâncias da API. Na ausência da configuração, a API usa uma chave aleatória em memória; reinícios invalidam códigos pendentes. O remetente vem das variáveis SMTP existentes, e o destinatário é sempre o e-mail da conta. Nunca publique o arquivo `.env` nem códigos recebidos.
+
+Ativar requer confirmação por e-mail. Desativar requer senha atual e confirmação pelo e-mail já cadastrado. Para trocar o e-mail de uma conta protegida, o titular deve primeiro desativar o segundo fator e reativá-lo no novo endereço.
+
 `npm test` usa exclusivamente `momint_test` e reinicializa esse banco. `npm run typecheck -w apps/api`, `npm run typecheck -w apps/web` e `npm run build -w apps/web` verificam a aplicação. Os testes de administração cobrem acesso exclusivo, cadastros atômicos, vários sistemas por cliente, equipes e configurações separadas, bloqueio de elevação de privilégios, suspensão, reativação e exclusão.

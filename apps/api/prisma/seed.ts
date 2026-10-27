@@ -14,6 +14,7 @@ export async function seed(db: PrismaClient) {
   const app = criarContainer({ prisma: db, fontes: fontesMock, relogio: criarRelogio(HOJE_ISO) });
 
   // Limpa na ordem de dependência (seed idempotente).
+  await db.desafioEmail.deleteMany();
   await db.notificacaoAdmin.deleteMany();
   await db.confirmacaoExclusao.deleteMany();
   await db.desfecho.deleteMany();

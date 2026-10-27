@@ -1,5 +1,6 @@
 // Composition root: monta repositórios, portas e serviços (injeção de dependências).
 import type { PrismaClient } from "@prisma/client";
+import { randomBytes } from "node:crypto";
 import { criarRepositorios } from "./infra/database/repositories/index.js";
 import { UnitOfWork } from "./infra/database/unit-of-work.js";
 import { geocodificadorMunicipios } from "./infra/geocodificacao/municipios.js";
@@ -21,6 +22,7 @@ import { RadarService } from "./modules/radar/radar.service.js";
 import { ReunioesService } from "./modules/reunioes/reunioes.service.js";
 import { UsuariosService } from "./modules/usuarios/usuarios.service.js";
 import { AdminService } from "./modules/admin/admin.service.js";
+import { AcessoService } from "./modules/auth/acesso.service.js";
 
 export interface Dependencias {
   prisma: PrismaClient;
@@ -31,9 +33,10 @@ export interface Dependencias {
   email?: Email;
   urlWeb?: string;
   agoraAutenticacao?: () => Date;
+  segredoOtp?: string;
 }
 
-export function criarContainer({ prisma, fontes, relogio, geocodificador = geocodificadorMunicipios, hasher = bcryptHasher, email, urlWeb, agoraAutenticacao }: Dependencias) {
+export function criarContainer({ prisma, fontes, relogio, geocodificador = geocodificadorMunicipios, hasher = bcryptHasher, email, urlWeb, agoraAutenticacao, segredoOtp }: Dependencias) {
   const repos = criarRepositorios(prisma);
   const uow = new UnitOfWork(prisma);
 
@@ -44,6 +47,7 @@ export function criarContainer({ prisma, fontes, relogio, geocodificador = geoco
   const radar = new RadarService(repos, fontes, geocodificador, relogio, abordagem);
 
   return {
+    acesso: new AcessoService(prisma, hasher, email, segredoOtp ?? randomBytes(32).toString("hex"), agoraAutenticacao),
     admin: new AdminService(prisma, hasher, agoraAutenticacao),
     auth: new AuthService(repos, hasher, uow, email, urlWeb, agoraAutenticacao),
     dashboard: new DashboardService(repos, relogio),
