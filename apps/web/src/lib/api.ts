@@ -23,7 +23,7 @@ export async function lerJson<T>(url: string): Promise<T> {
 }
 
 /** POST/PUT/PATCH. Só envia Content-Type quando há corpo (o Fastify recusa JSON vazio). */
-export async function enviar<T = unknown>(url: string, metodo: "POST" | "PUT" | "PATCH", corpo?: unknown): Promise<T> {
+export async function enviar<T = unknown>(url: string, metodo: "POST" | "PUT" | "PATCH" | "DELETE", corpo?: unknown): Promise<T> {
   const init: RequestInit = { method: metodo };
   if (corpo !== undefined) {
     init.headers = { "Content-Type": "application/json" };

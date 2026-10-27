@@ -18,11 +18,26 @@ enum ModoOperacao {
 
 enum Papel {
   ADMIN
+  GESTOR
   VENDEDOR
+  ATENDENTE
+}
+
+model ContaCliente {
+  id          String    @id @default(cuid())
+  nome        String
+  documento   String?
+  criadoEm    DateTime  @default(now())
+  excluidoEm  DateTime?
+  sistemas    Cliente[]
 }
 
 model Cliente {
   id                  String       @id @default(cuid())
+  contaClienteId      String?
+  contaCliente        ContaCliente? @relation(fields: [contaClienteId], references: [id])
+  demonstrativo       Boolean      @default(false)
+  ativo               Boolean      @default(true)
   nome                String
   plano               String       @default("piloto")
   modoOperacao        ModoOperacao @default(COPILOTO)
@@ -38,6 +53,8 @@ model Cliente {
   icp      PerfilICP?
   leads    Lead[]
   cadencia PassoCadencia[]
+
+  @@index([contaClienteId])
 }
 
 model Usuario {

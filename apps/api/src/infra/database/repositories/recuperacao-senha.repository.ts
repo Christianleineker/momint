@@ -9,12 +9,12 @@ export class RecuperacaoSenhaRepository {
   }
 
   buscar(tokenHash: string) {
-    return this.db.recuperacaoSenha.findUnique({ where: { tokenHash }, include: { usuario: true } });
+    return this.db.recuperacaoSenha.findUnique({ where: { tokenHash }, include: { usuario: { include: { cliente: { include: { contaCliente: true } } } } } });
   }
 
   async consumir(tokenHash: string, agora: Date) {
     const { count } = await this.db.recuperacaoSenha.updateMany({
-      where: { tokenHash, usadaEm: null, expiraEm: { gt: agora }, usuario: { ativo: true } },
+      where: { tokenHash, usadaEm: null, expiraEm: { gt: agora }, usuario: { ativo: true, cliente: { ativo: true, OR: [{ contaClienteId: null }, { contaCliente: { excluidoEm: null } }] } } },
       data: { usadaEm: agora },
     });
     return count === 1;

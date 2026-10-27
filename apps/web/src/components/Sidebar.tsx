@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Bot, Calendar, ChevronDown, Filter, Home, LogOut, Send, Settings, Target, UserPen, Zap } from "lucide-react";
 import { Logo } from "./ui";
+import { ROTULO_PAPEL, type Perfil } from "@/lib/perfil";
 
 const ITENS = [
   { href: "/dashboard", rotulo: "Dashboard", icone: Home },
@@ -16,7 +17,7 @@ const ITENS = [
   { href: "/configuracoes", rotulo: "Configurações", icone: Settings },
 ];
 
-export function Sidebar({ pendentes = 0 }: { pendentes?: number }) {
+export function Sidebar({ pendentes = 0, perfil }: { pendentes?: number; perfil: Perfil }) {
   const path = usePathname();
   const [menuAberto, setMenuAberto] = useState(false);
 
@@ -31,6 +32,7 @@ export function Sidebar({ pendentes = 0 }: { pendentes?: number }) {
         <Logo />
       </div>
       <nav className="flex-1 space-y-1 px-2 md:px-3">
+        {perfil.papel === "ADMIN" && <Link href="/acessos" title="Ambientes e Painel Admin" className="mb-3 block rounded-lg border border-white/10 px-3 py-3 text-xs text-sky-300 md:px-4"><span className="hidden md:inline">← Ambientes e Painel Admin</span><span className="md:hidden">←</span></Link>}
         {ITENS.map(({ href, rotulo, icone: Icone, contador }) => {
           const ativo = path.startsWith(href);
           return (
@@ -58,10 +60,11 @@ export function Sidebar({ pendentes = 0 }: { pendentes?: number }) {
           title="Menu do usuário"
           className="flex w-full items-center gap-3 rounded-lg text-left transition hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-acento/60"
         >
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-acento font-semibold text-white">GI</div>
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-acento font-semibold text-white">{perfil.nome.split(" ").filter(Boolean).slice(0, 2).map(n => n[0]).join("")}</div>
           <div className="hidden flex-1 md:block">
-            <p className="text-sm font-medium text-white">Gestor ImperSul</p>
-            <p className="text-xs text-slate-400">Gestor de equipe</p>
+            <p className="text-sm font-medium text-white">{perfil.nome}</p>
+            <p className="text-xs text-slate-400">{ROTULO_PAPEL[perfil.papel]}</p>
+            <p className="mt-1 text-xs text-slate-400">{perfil.cliente.nome}</p>
           </div>
           <ChevronDown className={`hidden h-4 w-4 transition md:block ${menuAberto ? "rotate-180" : ""}`} />
         </button>

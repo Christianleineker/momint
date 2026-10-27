@@ -7,11 +7,11 @@ export class UsuarioRepository {
   constructor(private readonly db: DbClient) {}
 
   buscarPorEmail(email: string) {
-    return this.db.usuario.findUnique({ where: { email: email.toLowerCase() } });
+    return this.db.usuario.findUnique({ where: { email: email.trim().toLowerCase() }, include: { cliente: { include: { contaCliente: true } } } });
   }
 
   buscarComCliente(id: string) {
-    return this.db.usuario.findUnique({ where: { id }, include: { cliente: true } });
+    return this.db.usuario.findUnique({ where: { id }, include: { cliente: { include: { contaCliente: true } } } });
   }
 
   buscarDoCliente(clienteId: string, id: string) {

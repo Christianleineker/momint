@@ -62,7 +62,7 @@ export class RadarService {
   async processarCliente(clienteId: string) {
     const hoje = this.relogio.agora();
     const cliente = await this.repos.clientes.buscarComIcp(clienteId);
-    if (!cliente?.icp) return { criados: 0, atualizados: 0 };
+    if (!cliente?.ativo || !cliente.icp) return { criados: 0, atualizados: 0 };
     const icp = cliente.icp;
 
     const [empresas, leads, vendedores] = await Promise.all([
@@ -119,6 +119,7 @@ export class RadarService {
     const hoje = this.relogio.agora();
     const icp = await this.repos.icp.buscarDoCliente(clienteId);
     if (!icp) throw new NaoEncontrado("Perfil de ICP não configurado");
+    if (!icp.cnaes.length || !icp.portes.length || !icp.cidadeBase) return [];
     const [eventos, leads] = await Promise.all([this.repos.eventos.listarComEmpresa(), this.repos.leads.listarResumo(clienteId)]);
     const leadPorEmpresa = new Map(leads.map((l) => [l.empresaId, l]));
 

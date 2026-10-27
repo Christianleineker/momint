@@ -13,7 +13,7 @@ export class ClienteRepository {
   }
 
   listarIds() {
-    return this.db.cliente.findMany({ select: { id: true } });
+    return this.db.cliente.findMany({ where: { ativo: true, OR: [{ contaClienteId: null }, { contaCliente: { excluidoEm: null } }] }, select: { id: true } });
   }
 
   atualizar(id: string, dados: Prisma.ClienteUpdateInput) {

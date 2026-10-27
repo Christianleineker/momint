@@ -3,7 +3,7 @@ import { Badge, Botao, Cabecalho, Card, CardTitulo } from "@/components/ui";
 
 // TODO: GET/PUT /api/configuracoes + POST/PATCH /api/usuarios
 const USUARIOS = [
-  { nome: "Gestor ImperSul", email: "gestor@impersul.com.br", papel: "Admin" },
+  { nome: "Gestor ImperSul", email: "gestor@impersul.com.br", papel: "Gestor" },
   { nome: "Rafael Nunes", email: "rafael@impersul.com.br", papel: "Vendedor" },
   { nome: "Carla Dias", email: "carla@impersul.com.br", papel: "Vendedor" },
 ];
@@ -48,7 +48,7 @@ export default function ConfiguracoesPage() {
                   <p className="font-medium text-navy">{u.nome}</p>
                   <p className="text-xs text-slate-500">{u.email}</p>
                 </div>
-                <Badge tom={u.papel === "Admin" ? "roxo" : "azul"}>{u.papel}</Badge>
+                <Badge tom={u.papel === "Gestor" ? "roxo" : "azul"}>{u.papel}</Badge>
               </li>
             ))}
           </ul>

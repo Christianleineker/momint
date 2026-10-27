@@ -20,5 +20,5 @@ export const icpRoutes =
   async (app) => {
     app.get("/icp", async (req) => icp.obter(req.user.clienteId));
 
-    app.put("/icp", { preHandler: exigirPapel("ADMIN") }, async (req) => icp.salvar(req.user.clienteId, icpBody.parse(req.body)));
+    app.put("/icp", { preHandler: exigirPapel("ADMIN", "GESTOR") }, async (req) => icp.salvar(req.user.clienteId, icpBody.parse(req.body)));
   };

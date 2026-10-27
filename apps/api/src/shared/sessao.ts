@@ -1,4 +1,4 @@
-export type Papel = "ADMIN" | "VENDEDOR";
+export type Papel = "ADMIN" | "GESTOR" | "VENDEDOR" | "ATENDENTE";
 
 /** Dados da sessão autenticada (conteúdo do JWT). */
 export interface Sessao {

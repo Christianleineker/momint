@@ -40,7 +40,7 @@ export class IcpService {
   async salvar(clienteId: string, dados: AtualizacaoIcp) {
     const coord = this.geo.coordenadas(dados.cidadeBase);
     if (!coord) throw new EntradaInvalida("Cidade-base desconhecida");
-    await this.repos.icp.atualizarDoCliente(clienteId, { ...dados, latBase: coord[0], lngBase: coord[1] });
+    await this.repos.icp.atualizarDoCliente(clienteId, { ...dados, ufBase: "PR", latBase: coord[0], lngBase: coord[1] });
     return this.radar.processarCliente(clienteId);
   }
 }

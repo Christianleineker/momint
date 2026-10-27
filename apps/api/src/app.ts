@@ -16,6 +16,7 @@ import { leadsRoutes } from "./modules/leads/leads.routes.js";
 import { radarRoutes } from "./modules/radar/radar.routes.js";
 import { reunioesRoutes } from "./modules/reunioes/reunioes.routes.js";
 import { usuariosRoutes } from "./modules/usuarios/usuarios.routes.js";
+import { adminRoutes } from "./modules/admin/admin.routes.js";
 
 export interface OpcoesApp {
   container: Container;
@@ -42,6 +43,7 @@ export async function criarApp({ container: c, jwtSecret, logger = false, produc
   await app.register(
     async (privado) => {
       privado.addHook("onRequest", autenticar);
+      await privado.register(adminRoutes(c.admin));
       await privado.register(dashboardRoutes(c.dashboard));
       await privado.register(radarRoutes(c.radar));
       await privado.register(leadsRoutes(c.leads));

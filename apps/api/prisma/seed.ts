@@ -26,6 +26,7 @@ export async function seed(db: PrismaClient) {
   await db.perfilICP.deleteMany();
   await db.usuario.deleteMany();
   await db.cliente.deleteMany();
+  await db.contaCliente.deleteMany();
   await db.tipoDeGatilho.deleteMany();
 
   await db.tipoDeGatilho.createMany({
@@ -38,9 +39,9 @@ export async function seed(db: PrismaClient) {
 
   const senhaHash = await bcrypt.hash(SENHA_DEMO, 10);
   const impersul = await db.cliente.create({
-    data: { nome: "ImperSul Impermeabilizações", plano: "piloto", vozMarca: "consultivo", assinaturaEmail: "Equipe ImperSul · (41) 3333-0000", taxaConversaoHist: 0.35 },
+    data: { nome: "ImperSul Impermeabilizações", demonstrativo: true, plano: "piloto", vozMarca: "consultivo", assinaturaEmail: "Equipe ImperSul · (41) 3333-0000", taxaConversaoHist: 0.35 },
   });
-  const gestor = await db.usuario.create({ data: { clienteId: impersul.id, nome: "Gestor ImperSul", email: "gestor@impersul.com.br", senhaHash, papel: "ADMIN" } });
+  const gestor = await db.usuario.create({ data: { clienteId: impersul.id, nome: "Gestor ImperSul", email: "gestor@impersul.com.br", senhaHash, papel: "GESTOR" } });
   const rafael = await db.usuario.create({ data: { clienteId: impersul.id, nome: "Rafael Nunes", email: "rafael@impersul.com.br", senhaHash, papel: "VENDEDOR" } });
   const carla = await db.usuario.create({ data: { clienteId: impersul.id, nome: "Carla Dias", email: "carla@impersul.com.br", senhaHash, papel: "VENDEDOR" } });
 
@@ -60,8 +61,8 @@ export async function seed(db: PrismaClient) {
   });
 
   // Segundo cliente — prova de isolamento multi-cliente.
-  const outro = await db.cliente.create({ data: { nome: "Esquadrias Paraná", vozMarca: "direto" } });
-  await db.usuario.create({ data: { clienteId: outro.id, nome: "Admin Esquadrias", email: "admin@esquadrias.com.br", senhaHash, papel: "ADMIN" } });
+  const outro = await db.cliente.create({ data: { nome: "Esquadrias Paraná", vozMarca: "direto", contaCliente: { create: { nome: "Esquadrias Paraná" } } } });
+  await db.usuario.create({ data: { clienteId: outro.id, nome: "Gestor Esquadrias", email: "admin@esquadrias.com.br", senhaHash, papel: "GESTOR" } });
   await db.perfilICP.create({
     data: { clienteId: outro.id, cnaes: ["4120400"], portes: ["DEMAIS"], cidadeBase: "CURITIBA", ufBase: "PR", latBase: -25.4284, lngBase: -49.2733, raioKm: 30, idadeMinAnos: 3, idadeMaxAnos: 40 },
   });

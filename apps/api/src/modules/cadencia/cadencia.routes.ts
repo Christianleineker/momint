@@ -16,7 +16,7 @@ export const cadenciaRoutes =
   async (app) => {
     app.get("/cadencia", async (req) => cadencia.obter(req.user.clienteId));
 
-    app.put("/cadencia", { preHandler: exigirPapel("ADMIN") }, async (req) => {
+    app.put("/cadencia", { preHandler: exigirPapel("ADMIN", "GESTOR") }, async (req) => {
       await cadencia.salvar(req.user.clienteId, cadenciaBody.parse(req.body));
       return { ok: true };
     });

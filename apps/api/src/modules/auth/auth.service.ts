@@ -6,6 +6,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { EntradaInvalida } from "../../shared/erros.js";
 import type { Email } from "../../ports/email.js";
 import type { UnitOfWork } from "../../infra/database/unit-of-work.js";
+import { adminPermitido } from "../../shared/admin.js";
 
 const TRINTA_MINUTOS_MS = 30 * 60_000;
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
@@ -23,19 +24,19 @@ export class AuthService {
   /** Valida credenciais e devolve os dados da sessão (o token é emitido na camada HTTP). */
   async autenticar(email: string, senha: string): Promise<{ sessao: Sessao; nome: string }> {
     const usuario = await this.repos.usuarios.buscarPorEmail(email);
-    const valido = usuario?.ativo && (await this.hasher.comparar(senha, usuario.senhaHash));
+    const valido = usuario?.ativo && usuario.cliente.ativo && !usuario.cliente.contaCliente?.excluidoEm && adminPermitido(usuario) && (await this.hasher.comparar(senha, usuario.senhaHash));
     if (!usuario || !valido) throw new NaoAutenticado("E-mail ou senha inválidos");
     return { sessao: { sub: usuario.id, clienteId: usuario.clienteId, papel: usuario.papel, versao: usuario.versaoSessao }, nome: usuario.nome };
   }
 
   async sessaoValida(sessao: Sessao) {
     const usuario = await this.repos.usuarios.buscarComCliente(sessao.sub);
-    return !!usuario?.ativo && usuario.clienteId === sessao.clienteId && usuario.papel === sessao.papel && usuario.versaoSessao === (sessao.versao ?? 0);
+    return !!usuario?.ativo && usuario.cliente.ativo && !usuario.cliente.contaCliente?.excluidoEm && adminPermitido(usuario) && usuario.clienteId === sessao.clienteId && usuario.papel === sessao.papel && usuario.versaoSessao === (sessao.versao ?? 0);
   }
 
   async solicitarRecuperacao(email: string) {
     const usuario = await this.repos.usuarios.buscarPorEmail(email.trim());
-    if (!usuario?.ativo) return;
+    if (!usuario?.ativo || !usuario.cliente.ativo || usuario.cliente.contaCliente?.excluidoEm || !adminPermitido(usuario)) return;
     if (!this.email) throw new Error("Envio de e-mail não configurado.");
     const token = randomBytes(32).toString("hex");
     await this.repos.recuperacoes.emitir(usuario.id, hashToken(token), new Date(this.agora().getTime() + TRINTA_MINUTOS_MS));
@@ -51,7 +52,7 @@ export class AuthService {
 
   async tokenValido(token: string) {
     const recuperacao = await this.repos.recuperacoes.buscar(hashToken(token));
-    return !!recuperacao && recuperacao.usuario.ativo && !recuperacao.usadaEm && recuperacao.expiraEm > this.agora();
+    return !!recuperacao && recuperacao.usuario.ativo && recuperacao.usuario.cliente.ativo && !recuperacao.usuario.cliente.contaCliente?.excluidoEm && adminPermitido(recuperacao.usuario) && !recuperacao.usadaEm && recuperacao.expiraEm > this.agora();
   }
 
   async redefinirSenha(token: string, senha: string) {
@@ -76,7 +77,7 @@ export class AuthService {
       nome: u.nome,
       email: u.email,
       papel: u.papel,
-      cliente: { id: u.cliente.id, nome: u.cliente.nome, modoOperacao: u.cliente.modoOperacao },
+      cliente: { id: u.cliente.id, nome: u.cliente.nome, modoOperacao: u.cliente.modoOperacao, demonstrativo: u.cliente.demonstrativo },
       aprovacoesPendentes: await this.repos.mensagens.contarRascunhosDoCliente(u.clienteId),
     };
   }

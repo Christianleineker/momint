@@ -48,7 +48,8 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/dashboard");
+      const perfil = await resposta.json() as { papel: string };
+      router.push(perfil.papel === "ADMIN" ? "/acessos" : "/dashboard");
       router.refresh();
     } catch {
       setErro("Não foi possível conectar ao servidor. Tente novamente.");

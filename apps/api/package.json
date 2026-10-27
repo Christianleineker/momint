@@ -9,6 +9,8 @@
     "db:setup": "prisma migrate dev --name init --skip-seed && tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force --skip-seed && tsx prisma/seed.ts",
     "seed": "tsx prisma/seed.ts",
+    "admin:preparar": "tsx scripts/preparar-admin.ts",
+    "db:migrate": "prisma migrate deploy",
     "test": "vitest run",
     "test:unit": "vitest run test/unit",
     "typecheck": "tsc --noEmit"

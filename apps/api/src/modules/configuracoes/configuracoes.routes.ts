@@ -16,7 +16,7 @@ export const configuracoesRoutes =
   async (app) => {
     app.get("/configuracoes", async (req) => configuracoes.obter(req.user.clienteId));
 
-    app.put("/configuracoes", { preHandler: exigirPapel("ADMIN") }, async (req) => {
+    app.put("/configuracoes", { preHandler: exigirPapel("ADMIN", "GESTOR") }, async (req) => {
       await configuracoes.salvar(req.user.clienteId, configuracoesBody.parse(req.body));
       return { ok: true };
     });
