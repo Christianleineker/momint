@@ -8,6 +8,7 @@ import { adminPermitido } from "../../shared/admin.js";
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 const CINCO_MINUTOS = 5 * 60_000;
+const mascararEmail = (email: string) => { const [local, dominio] = email.split("@"); return `${local.slice(0, 2)}***@${dominio}`; };
 const sessaoUsuario = (u: Usuario): Sessao => ({ sub: u.id, clienteId: u.clienteId, papel: u.papel, versao: u.versaoSessao });
 
 export class AcessoService {
@@ -42,8 +43,7 @@ export class AcessoService {
       await this.db.desafioEmail.deleteMany({ where: { tokenHash: hashToken(token) } });
       throw new ServicoIndisponivel("Não foi possível enviar o código. Tente novamente mais tarde.");
     }
-    const [local, dominio] = u.email.split("@");
-    return { token, emailMascarado: `${local.slice(0, 2)}***@${dominio}`, expiraEmSegundos: CINCO_MINUTOS / 1000 };
+    return { token, emailMascarado: mascararEmail(u.email) };
   }
 
   async iniciarLogin(sessao: Sessao) {
@@ -61,8 +61,7 @@ export class AcessoService {
     const d = await this.db.desafioEmail.findUnique({ where: { tokenHash: hashToken(token) }, include: { usuario: true } });
     if (!d || d.finalidade !== "LOGIN" || d.expiraEm <= this.agora() || d.versaoSessao !== d.usuario.versaoSessao) return null;
     await this.usuarioValido(sessaoUsuario(d.usuario));
-    const [local, dominio] = d.emailDestino.split("@");
-    return { requerCodigo: true, emailMascarado: `${local.slice(0, 2)}***@${dominio}` };
+    return { requerCodigo: true, emailMascarado: mascararEmail(d.emailDestino) };
   }
 
   async solicitarConfiguracao(sessao: Sessao, ativar: boolean, senhaAtual?: string) {

@@ -1,13 +1,11 @@
 import type { Repositorios } from "../../infra/database/repositories/index.js";
 import type { HasherSenha } from "../../ports/hasher.js";
-import { NaoAutenticado, NaoEncontrado } from "../../shared/erros.js";
+import { AcessoNegado, EntradaInvalida, NaoAutenticado, NaoEncontrado } from "../../shared/erros.js";
 import type { Sessao } from "../../shared/sessao.js";
 import { createHash, randomBytes } from "node:crypto";
-import { EntradaInvalida } from "../../shared/erros.js";
 import type { Email } from "../../ports/email.js";
 import type { UnitOfWork } from "../../infra/database/unit-of-work.js";
 import { adminPermitido, EMAIL_ADMIN } from "../../shared/admin.js";
-import { AcessoNegado } from "../../shared/erros.js";
 
 const TRINTA_MINUTOS_MS = 30 * 60_000;
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");

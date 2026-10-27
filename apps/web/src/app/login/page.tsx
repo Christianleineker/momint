@@ -134,11 +134,7 @@ export default function LoginPage() {
               {erro}
             </p>
           )}
-          {!pendente && <div className="flex items-center justify-between gap-4">
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
-              <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-acento focus:ring-acento" />
-              Lembrar de mim
-            </label>
+          {!pendente && <div className="flex justify-end">
             <Link href="/recuperar-senha" className="rounded text-sm font-medium text-acento transition hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-acento">
               Esqueci a senha?
             </Link>
