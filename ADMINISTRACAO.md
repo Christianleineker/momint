@@ -26,8 +26,6 @@ O suporte administrativo edita nome e contato do cliente, nome e plano do sistem
 
 Os indicadores representam os cadastros atuais: clientes não excluídos, sistemas vendidos (incluindo os suspensos), sistemas ativos e usuários ativos dos sistemas ativos. A demonstração e clientes excluídos ficam fora dos totais. Não representam um histórico financeiro de vendas.
 
-## Verificação
-
 ## Primeiro acesso e segundo fator por e-mail
 
 Novos usuários escolhem no dashboard se mantêm a senha recebida ou definem outra (com confirmação da senha atual). Depois podem ativar o segundo fator ou adiar a escolha para Meu perfil. Instalações existentes não recebem novamente a escolha de senha inicial. Redefinições feitas pelo administrador reapresentam a escolha de senha e preservam o segundo fator já ativo.
@@ -38,4 +36,12 @@ Configure `OTP_SECRET` com um segredo aleatório de pelo menos 32 caracteres, fo
 
 Ativar requer confirmação por e-mail. Desativar requer senha atual e confirmação pelo e-mail já cadastrado. Para trocar o e-mail de uma conta protegida, o titular deve primeiro desativar o segundo fator e reativá-lo no novo endereço.
 
-`npm test` usa exclusivamente `momint_test` e reinicializa esse banco. `npm run typecheck -w apps/api`, `npm run typecheck -w apps/web` e `npm run build -w apps/web` verificam a aplicação. Os testes de administração cobrem acesso exclusivo, cadastros atômicos, vários sistemas por cliente, equipes e configurações separadas, bloqueio de elevação de privilégios, suspensão, reativação e exclusão.
+## Atendimento de suporte
+
+Falar com o suporte abre um chat suspenso que pode ser minimizado. Visitantes não precisam de conta. A conversa é acessada apenas por um cookie HttpOnly, SameSite e Secure em produção, válido por 30 dias; o banco guarda somente o hash do identificador de acesso. A conversa fica vinculada a esse navegador, e o e-mail informado no chat é um contato declarado pelo visitante, sem comprovação de titularidade.
+
+O painel Atendimentos é exclusivo de ADMIN, consultado no banco em cada requisição. Permite ler, responder, buscar por nome ou e-mail e encerrar conversas. Uma mensagem nova reabre o atendimento. Respostas aparecem automaticamente no chat do visitante por consulta periódica, a cada três segundos enquanto aberto. Mensagens não lidas também são indicadas no chat minimizado e no painel. Cada envio possui identificador para evitar duplicação em tentativas repetidas, e o histórico possui paginação. Conteúdo é exibido como texto, sem executar HTML.
+
+## Verificação
+
+`npm test` usa exclusivamente `momint_test` e reinicializa esse banco. `npm run typecheck -w apps/api`, `npm run typecheck -w apps/web` e `npm run build -w apps/web` verificam a aplicação. Os testes cobrem administração, isolamento de sistemas e conversas, primeiro acesso, segundo fator, expiração, limites de tentativas, uso único concorrente e respostas exclusivas de ADMIN.

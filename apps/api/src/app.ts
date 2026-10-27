@@ -17,6 +17,7 @@ import { radarRoutes } from "./modules/radar/radar.routes.js";
 import { reunioesRoutes } from "./modules/reunioes/reunioes.routes.js";
 import { usuariosRoutes } from "./modules/usuarios/usuarios.routes.js";
 import { adminRoutes } from "./modules/admin/admin.routes.js";
+import { suporteAdminRoutes, suportePublicoRoutes } from "./modules/suporte/suporte.routes.js";
 
 export interface OpcoesApp {
   container: Container;
@@ -38,12 +39,14 @@ export async function criarApp({ container: c, jwtSecret, logger = false, produc
 
   // Rotas públicas (login) + /auth/me com autenticação própria.
   await app.register(authRoutes(c.auth, c.acesso, producao), { prefix: "/api" });
+  await app.register(suportePublicoRoutes(c.suporte, producao), { prefix: "/api" });
 
   // Rotas autenticadas: todas recebem a sessão (clienteId) via JWT.
   await app.register(
     async (privado) => {
       privado.addHook("onRequest", autenticar);
       await privado.register(adminRoutes(c.admin));
+      await privado.register(suporteAdminRoutes(c.suporte));
       await privado.register(dashboardRoutes(c.dashboard));
       await privado.register(radarRoutes(c.radar));
       await privado.register(leadsRoutes(c.leads));

@@ -9,6 +9,7 @@ import { ArrowRight, BarChart3, ChartNoAxesColumnIncreasing, LockKeyhole, Mail, 
 import { Logo } from "@/components/ui";
 import { CampoSenha } from "@/components/CampoSenha";
 import { enviar } from "@/lib/api";
+import { abrirChatSuporte } from "@/components/ChatSuporte";
 
 const DESTAQUES = [
   { icone: Users, titulo: "Organize seus leads", texto: "Tenha controle total do seu funil de vendas." },
@@ -155,7 +156,7 @@ export default function LoginPage() {
             <span className="text-xs font-medium uppercase text-slate-400">ou</span>
             <div className="h-px flex-1 bg-slate-200" />
           </div>
-          <button type="button" className="flex w-full items-center justify-center gap-2 text-sm font-medium text-acento transition hover:text-blue-700">
+          <button type="button" onClick={abrirChatSuporte} className="flex w-full items-center justify-center gap-2 text-sm font-medium text-acento transition hover:text-blue-700">
             <MessageCircle className="h-5 w-5" />
             Falar com o suporte
           </button>

@@ -23,6 +23,7 @@ import { ReunioesService } from "./modules/reunioes/reunioes.service.js";
 import { UsuariosService } from "./modules/usuarios/usuarios.service.js";
 import { AdminService } from "./modules/admin/admin.service.js";
 import { AcessoService } from "./modules/auth/acesso.service.js";
+import { SuporteService } from "./modules/suporte/suporte.service.js";
 
 export interface Dependencias {
   prisma: PrismaClient;
@@ -47,6 +48,7 @@ export function criarContainer({ prisma, fontes, relogio, geocodificador = geoco
   const radar = new RadarService(repos, fontes, geocodificador, relogio, abordagem);
 
   return {
+    suporte: new SuporteService(prisma, agoraAutenticacao),
     acesso: new AcessoService(prisma, hasher, email, segredoOtp ?? randomBytes(32).toString("hex"), agoraAutenticacao),
     admin: new AdminService(prisma, hasher, agoraAutenticacao),
     auth: new AuthService(repos, hasher, uow, email, urlWeb, agoraAutenticacao),

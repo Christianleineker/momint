@@ -117,6 +117,42 @@ model DesafioEmail {
   @@index([expiraEm])
 }
 
+enum AutorSuporte {
+  VISITANTE
+  ADMIN
+}
+
+model ConversaSuporte {
+  id                   String @id @default(cuid())
+  acessoHash           String @unique
+  nome                 String
+  email                String?
+  assunto              String @default("SUPORTE")
+  encerrada            Boolean @default(false)
+  pendentesAdmin       Int @default(0)
+  pendentesVisitante   Int @default(0)
+  criadoEm             DateTime @default(now())
+  ultimaMensagemEm     DateTime @default(now())
+  acessoExpiraEm       DateTime
+  mensagens            MensagemSuporte[]
+
+  @@index([ultimaMensagemEm])
+}
+
+model MensagemSuporte {
+  id              String @id @default(cuid())
+  conversaId      String
+  autor           AutorSuporte
+  nomeAutor       String
+  conteudo        String
+  idEnvio         String
+  criadoEm        DateTime @default(now())
+  conversa        ConversaSuporte @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+
+  @@unique([conversaId, idEnvio])
+  @@index([conversaId, criadoEm, id])
+}
+
 model NotificacaoAdmin {
   id        String   @id @default(cuid())
   tipo      String
