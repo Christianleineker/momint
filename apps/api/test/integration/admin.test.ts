@@ -17,6 +17,7 @@ let sistemaId: string;
 let segundoSistemaId: string;
 let primeiro: { cookie: string };
 let segundo: { cookie: string };
+let agora = new Date();
 const novoSistema = (sufixo: string) => ({ nome: `Sistema ${sufixo}`, plano: "mensal", responsavel: `Gestor ${sufixo}`, email: `gestor-${sufixo}@cliente.example`, senha });
 async function login(email: string, senhaLogin = senha) {
   const r = await app.inject({ method: "POST", url: "/api/auth/login", payload: { email, senha: senhaLogin } });
@@ -27,7 +28,7 @@ beforeAll(async () => {
   await seed(db);
   const demo = await db.cliente.findFirstOrThrow({ where: { demonstrativo: true } });
   await db.usuario.create({ data: { email: EMAIL_ADMIN, nome: "Administrador", clienteId: demo.id, papel: "ADMIN", senhaHash: await bcrypt.hash(senha, 4) } });
-  app = await criarApp({ container: criarContainer({ prisma: db, fontes: fontesMock, relogio: criarRelogio("2026-09-30") }), jwtSecret: "test-admin" });
+  app = await criarApp({ container: criarContainer({ prisma: db, fontes: fontesMock, relogio: criarRelogio("2026-09-30"), agoraAutenticacao: () => agora }), jwtSecret: "test-admin" });
   admin = await login(EMAIL_ADMIN.toUpperCase());
 });
 afterAll(async () => { await app?.close(); await db.$disconnect(); });
@@ -97,9 +98,19 @@ describe("Administrador exclusivo e gestão de clientes", () => {
   });
 
   it("exige confirmação para excluir, revoga todos os acessos e protege a demonstração", async () => {
-    expect((await app.inject({ method: "DELETE", url: `/api/admin/clientes/${clienteId}`, headers: admin, payload: { confirmacao: "errado" } })).statusCode).toBe(409);
+    expect((await app.inject({ method: "POST", url: `/api/admin/clientes/${clienteId}/confirmar-exclusao`, headers: admin, payload: { confirmacao: "errado" } })).statusCode).toBe(409);
+    expect((await app.inject({ method: "DELETE", url: `/api/admin/clientes/${clienteId}`, headers: admin, payload: { confirmacao: "Cliente Teste" } })).statusCode).toBe(400);
+    const preparar = () => app.inject({ method: "POST", url: `/api/admin/clientes/${clienteId}/confirmar-exclusao`, headers: admin, payload: { confirmacao: "Cliente Teste" } });
+    const inicial = (await preparar()).json();
+    expect(inicial.aguardarMs).toBe(5000);
+    expect((await app.inject({ method: "DELETE", url: `/api/admin/clientes/${clienteId}`, headers: admin, payload: { confirmacao: "Cliente Teste", token: inicial.token } })).statusCode).toBe(409);
+    expect((await app.inject({ method: "DELETE", url: `/api/admin/clientes/${clienteId}/confirmar-exclusao`, headers: admin })).statusCode).toBe(200);
+    agora = new Date(agora.getTime() + 5001);
+    expect((await app.inject({ method: "DELETE", url: `/api/admin/clientes/${clienteId}`, headers: admin, payload: { confirmacao: "Cliente Teste", token: inicial.token } })).statusCode).toBe(409);
+    const final = (await preparar()).json();
+    agora = new Date(agora.getTime() + 5001);
     expect((await app.inject({ url: "/api/auth/me", headers: primeiro })).statusCode).toBe(200);
-    expect((await app.inject({ method: "DELETE", url: `/api/admin/clientes/${clienteId}`, headers: admin, payload: { confirmacao: "Cliente Teste" } })).statusCode).toBe(200);
+    expect((await app.inject({ method: "DELETE", url: `/api/admin/clientes/${clienteId}`, headers: admin, payload: { confirmacao: "Cliente Teste", token: final.token } })).statusCode).toBe(200);
     expect((await app.inject({ url: "/api/auth/me", headers: primeiro })).statusCode).toBe(401);
     expect((await app.inject({ url: "/api/auth/me", headers: segundo })).statusCode).toBe(401);
     expect((await app.inject({ url: "/api/auth/me", headers: admin })).statusCode).toBe(200);
@@ -111,4 +122,42 @@ describe("Administrador exclusivo e gestão de clientes", () => {
     expect((await app.inject({ method: "PATCH", url: `/api/admin/sistemas/${demo.id}`, headers: admin, payload: { ativo: false } })).statusCode).toBe(404);
   });
 
+  it("edita apenas dados básicos e registra eventos persistentes sem expor senhas", async () => {
+    const conta = (await app.inject({ method: "POST", url: "/api/admin/clientes", headers: admin, payload: { nome: "Cliente Suporte", documento: "Documento preservado", sistema: novoSistema("suporte") } })).json();
+    const usuario = await db.usuario.findUniqueOrThrow({ where: { email: "gestor-suporte@cliente.example" } });
+    const antigo = await login(usuario.email);
+    const documento = await db.contaCliente.findUniqueOrThrow({ where: { id: conta.id } });
+    expect((await app.inject({ method: "PUT", url: `/api/admin/clientes/${conta.id}`, headers: admin, payload: { nome: "Novo nome", documento: "Alterar CPF" } })).statusCode).toBe(400);
+    expect((await app.inject({ method: "PUT", url: `/api/admin/clientes/${conta.id}`, headers: admin, payload: { nome: "Cliente Suporte Atualizado", emailContato: "contato@cliente.example", telefone: "11999990000" } })).statusCode).toBe(200);
+    expect((await db.contaCliente.findUniqueOrThrow({ where: { id: conta.id } })).documento).toBe(documento.documento);
+    expect((await app.inject({ method: "PUT", url: `/api/admin/sistemas/${usuario.clienteId}`, headers: admin, payload: { nome: "Novo sistema", plano: "anual", leads: [] } })).statusCode).toBe(400);
+    expect((await app.inject({ method: "PUT", url: `/api/admin/sistemas/${usuario.clienteId}`, headers: admin, payload: { nome: "Novo sistema", plano: "anual" } })).statusCode).toBe(200);
+    expect((await app.inject({ method: "PUT", url: `/api/admin/usuarios/${usuario.id}`, headers: admin, payload: { nome: "Responsável", email: usuario.email, papel: "ADMIN" } })).statusCode).toBe(400);
+    expect((await app.inject({ method: "PUT", url: `/api/admin/usuarios/${usuario.id}`, headers: admin, payload: { nome: "Responsável", email: "suporte-atualizado@cliente.example", telefone: "11988880000", senha: "NovaSenhaSuporte123!" } })).statusCode).toBe(200);
+    expect((await app.inject({ url: "/api/auth/me", headers: antigo })).statusCode).toBe(401);
+    const novo = await login("suporte-atualizado@cliente.example", "NovaSenhaSuporte123!");
+    expect((await app.inject({ url: "/api/auth/me", headers: novo })).json().papel).toBe("GESTOR");
+    expect((await app.inject({ method: "PUT", url: `/api/admin/usuarios/${usuario.id}`, headers: novo, payload: { nome: "Responsável", email: "teste@cliente.example" } })).statusCode).toBe(403);
+    const n = (await app.inject({ url: "/api/admin/notificacoes", headers: admin })).json();
+    expect(n.naoLidas).toBeGreaterThan(0);
+    expect(n.itens.map((i: { tipo: string }) => i.tipo)).toEqual(expect.arrayContaining(["CLIENTE_CRIADO", "SISTEMA_VENDIDO", "CLIENTE_EXCLUIDO", "CLIENTE_ATUALIZADO", "USUARIO_ATUALIZADO"]));
+    expect(JSON.stringify(n)).not.toContain("NovaSenhaSuporte123!"); expect(JSON.stringify(n)).not.toContain("senhaHash");
+    expect((await app.inject({ url: "/api/admin/notificacoes", headers: novo })).statusCode).toBe(403);
+    expect((await app.inject({ method: "PATCH", url: "/api/admin/notificacoes", headers: admin, payload: { ids: [n.itens[0].id] } })).statusCode).toBe(200);
+    expect((await app.inject({ url: "/api/admin/notificacoes", headers: admin })).json().naoLidas).toBe(n.naoLidas - 1);
+    expect((await app.inject({ method: "PATCH", url: "/api/admin/notificacoes", headers: admin, payload: { todas: true } })).statusCode).toBe(200);
+    expect((await app.inject({ url: "/api/admin/notificacoes", headers: admin })).json().naoLidas).toBe(0);
+  });
+
+  it("valida o cargo atual no banco, rejeitando tokens com ADMIN forjado ou já removido", async () => {
+    const vendedor = await db.usuario.findUniqueOrThrow({ where: { email: "rafael@impersul.com.br" } });
+    const token = app.jwt.sign({ sub: vendedor.id, clienteId: vendedor.clienteId, papel: "ADMIN", versao: vendedor.versaoSessao });
+    expect((await app.inject({ url: "/api/admin/clientes", headers: { cookie: `momint_token=${token}` } })).statusCode).toBe(401);
+    await db.usuario.update({ where: { email: EMAIL_ADMIN }, data: { papel: "GESTOR", versaoSessao: { increment: 1 } } });
+    expect((await app.inject({ url: "/api/admin/clientes", headers: admin })).statusCode).toBe(401);
+    const semCargo = await login(EMAIL_ADMIN);
+    expect((await app.inject({ url: "/api/admin/clientes", headers: semCargo })).statusCode).toBe(403);
+    await db.usuario.update({ where: { email: EMAIL_ADMIN }, data: { papel: "ADMIN", versaoSessao: { increment: 1 } } });
+    admin = await login(EMAIL_ADMIN);
+  });
 });

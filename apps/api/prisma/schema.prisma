@@ -26,10 +26,13 @@ enum Papel {
 model ContaCliente {
   id          String    @id @default(cuid())
   nome        String
+  emailContato String?
+  telefone    String?
   documento   String?
   criadoEm    DateTime  @default(now())
   excluidoEm  DateTime?
   sistemas    Cliente[]
+  confirmacoesExclusao ConfirmacaoExclusao[]
 }
 
 model Cliente {
@@ -62,6 +65,7 @@ model Usuario {
   clienteId String
   nome      String
   email     String   @unique
+  telefone  String?
   senhaHash String
   versaoSessao Int @default(0)
   papel     Papel    @default(VENDEDOR)
@@ -73,6 +77,7 @@ model Usuario {
   reunioes  Reuniao[]
   aprovadas Mensagem[] @relation("aprovador")
   recuperacaoSenha RecuperacaoSenha?
+  confirmacoesExclusao ConfirmacaoExclusao[]
 
   @@index([clienteId])
 }
@@ -83,6 +88,33 @@ model RecuperacaoSenha {
   expiraEm DateTime
   usadaEm DateTime?
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+model NotificacaoAdmin {
+  id        String   @id @default(cuid())
+  tipo      String
+  titulo    String
+  texto     String
+  criadoEm  DateTime @default(now())
+  lidaEm    DateTime?
+
+  @@index([criadoEm])
+}
+
+model ConfirmacaoExclusao {
+  id              String   @id @default(cuid())
+  tokenHash       String   @unique
+  usuarioId       String
+  contaClienteId  String
+  nomeConfirmado  String
+  versaoSessao    Int
+  prontoEm        DateTime
+  expiraEm        DateTime
+  usadaEm         DateTime?
+  usuario         Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  contaCliente    ContaCliente @relation(fields: [contaClienteId], references: [id], onDelete: Cascade)
+
+  @@index([contaClienteId])
 }
 
 model PerfilICP {

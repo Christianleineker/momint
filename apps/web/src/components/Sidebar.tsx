@@ -72,7 +72,7 @@ export function Sidebar({ pendentes = 0, perfil }: { pendentes?: number; perfil:
         {menuAberto && (
           <div role="menu" className="fixed bottom-20 left-3 z-50 w-52 overflow-hidden rounded-lg border border-white/10 bg-navy-2 py-1 shadow-xl md:static md:mt-3 md:w-auto">
             <Link
-              href="/configuracoes"
+              href="/configuracoes?aba=perfil"
               role="menuitem"
               className="flex items-center gap-2 px-3 py-2 text-sm text-slate-100 transition hover:bg-white/10"
               onClick={() => setMenuAberto(false)}

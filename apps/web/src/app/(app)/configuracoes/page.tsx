@@ -1,5 +1,7 @@
 import { CalendarDays, MessageSquareQuote, Save, ShieldCheck, UserPlus, Users } from "lucide-react";
 import { Badge, Botao, Cabecalho, Card, CardTitulo } from "@/components/ui";
+import { ConfiguracoesAbas } from "@/components/ConfiguracoesAbas";
+import { obterPerfil } from "@/lib/sessao-servidor";
 
 // TODO: GET/PUT /api/configuracoes + POST/PATCH /api/usuarios
 const USUARIOS = [
@@ -8,9 +10,10 @@ const USUARIOS = [
   { nome: "Carla Dias", email: "carla@impersul.com.br", papel: "Vendedor" },
 ];
 
-export default function ConfiguracoesPage() {
+export default async function ConfiguracoesPage() {
+  const perfil = await obterPerfil();
   return (
-    <>
+    <ConfiguracoesAbas perfil={perfil}>
       <Cabecalho titulo="Configurações" subtitulo="Voz da marca, operação, calendário e equipe." acoes={<Botao><Save className="h-4 w-4" /> Salvar</Botao>} />
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
@@ -54,6 +57,6 @@ export default function ConfiguracoesPage() {
           </ul>
         </Card>
       </div>
-    </>
+    </ConfiguracoesAbas>
   );
 }

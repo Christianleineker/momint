@@ -44,7 +44,7 @@ export function criarContainer({ prisma, fontes, relogio, geocodificador = geoco
   const radar = new RadarService(repos, fontes, geocodificador, relogio, abordagem);
 
   return {
-    admin: new AdminService(prisma, hasher),
+    admin: new AdminService(prisma, hasher, agoraAutenticacao),
     auth: new AuthService(repos, hasher, uow, email, urlWeb, agoraAutenticacao),
     dashboard: new DashboardService(repos, relogio),
     radar,

@@ -9,6 +9,13 @@ const SETE_DIAS_S = 7 * 86_400;
 const recuperacaoBody = z.object({ email: z.string().trim().toLowerCase().email() });
 const tokenBody = z.object({ token: z.string().regex(/^[a-f0-9]{64}$/) });
 const novaSenhaBody = tokenBody.extend({ senha: z.string().min(12).max(72).refine((senha) => Buffer.byteLength(senha, "utf8") <= 72) });
+const perfilBody = z.object({
+  nome: z.string().trim().min(2).max(120),
+  email: z.string().trim().toLowerCase().email().max(254),
+  telefone: z.string().trim().max(30).nullable().optional(),
+  senhaAtual: z.string().max(200).optional(),
+  novaSenha: z.string().min(12).max(72).refine(s => Buffer.byteLength(s, "utf8") <= 72).optional(),
+}).strict();
 
 export const authRoutes =
   (auth: AuthService, secureCookie = false): FastifyPluginAsync =>
@@ -38,6 +45,13 @@ export const authRoutes =
     });
 
     app.get("/auth/me", { onRequest: autenticar }, async (req) => auth.perfil(req.user.sub));
+
+    app.patch("/auth/perfil", { onRequest: autenticar, config: { rateLimit: { max: 10, timeWindow: "15 minutes" } } }, async (req, rep) => {
+      const sessao = await auth.atualizarPerfil(req.user, perfilBody.parse(req.body));
+      const token = app.jwt.sign(sessao, { expiresIn: SETE_DIAS_S });
+      rep.setCookie(COOKIE_SESSAO, token, { path: "/", httpOnly: true, secure: secureCookie, sameSite: "lax", maxAge: SETE_DIAS_S });
+      return rep.header("Cache-Control", "no-store").send(await auth.perfil(sessao.sub));
+    });
 
     app.post("/auth/recuperar-senha", {
       config: { rateLimit: { max: 10, timeWindow: "15 minutes" } },

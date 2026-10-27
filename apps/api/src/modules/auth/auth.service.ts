@@ -6,7 +6,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { EntradaInvalida } from "../../shared/erros.js";
 import type { Email } from "../../ports/email.js";
 import type { UnitOfWork } from "../../infra/database/unit-of-work.js";
-import { adminPermitido } from "../../shared/admin.js";
+import { adminPermitido, EMAIL_ADMIN } from "../../shared/admin.js";
+import { AcessoNegado } from "../../shared/erros.js";
 
 const TRINTA_MINUTOS_MS = 30 * 60_000;
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
@@ -69,6 +70,25 @@ export class AuthService {
     await this.email?.enviar({ destinatario: email, assunto: "Momint - sua senha foi alterada", texto: "Sua senha de acesso ao Momint foi alterada. As sessões anteriores foram encerradas. Se você não reconhece esta alteração, entre em contato com o suporte.\n\nEquipe Momint" });
   }
 
+  async atualizarPerfil(sessao: Sessao, dados: { nome: string; telefone?: string | null; email: string; senhaAtual?: string; novaSenha?: string }) {
+    return this.uow.executar(async repos => {
+      const usuario = await repos.usuarios.buscarComCliente(sessao.sub);
+      if (!usuario?.ativo || usuario.versaoSessao !== (sessao.versao ?? 0) || usuario.papel !== sessao.papel || !usuario.cliente.ativo || usuario.cliente.contaCliente?.excluidoEm) throw new NaoAutenticado("Sessão encerrada. Entre novamente.");
+      if (usuario.papel === "ADMIN" && dados.email !== EMAIL_ADMIN) throw new AcessoNegado("O e-mail do administrador geral é fixo.");
+      if (usuario.papel !== "ADMIN" && dados.email === EMAIL_ADMIN) throw new AcessoNegado("E-mail reservado ao administrador geral.");
+      const credenciaisAlteradas = dados.email !== usuario.email || !!dados.novaSenha;
+      if (credenciaisAlteradas && (!dados.senhaAtual || !await this.hasher.comparar(dados.senhaAtual, usuario.senhaHash))) throw new EntradaInvalida("Informe sua senha atual corretamente para alterar e-mail ou senha.");
+      const alterados = await repos.usuarios.atualizarPerfil(usuario.id, usuario.versaoSessao, {
+        nome: dados.nome, email: dados.email, telefone: dados.telefone,
+        ...(dados.novaSenha ? { senhaHash: await this.hasher.gerar(dados.novaSenha) } : {}),
+        ...(credenciaisAlteradas ? { versaoSessao: { increment: 1 } } : {}),
+      });
+      if (!alterados.count) throw new NaoAutenticado("Seu acesso foi atualizado. Entre novamente.");
+      if (credenciaisAlteradas) await repos.recuperacoes.revogar(usuario.id);
+      return { sub: usuario.id, clienteId: usuario.clienteId, papel: usuario.papel, versao: usuario.versaoSessao + (credenciaisAlteradas ? 1 : 0) } satisfies Sessao;
+    });
+  }
+
   async perfil(usuarioId: string) {
     const u = await this.repos.usuarios.buscarComCliente(usuarioId);
     if (!u) throw new NaoEncontrado("Usuário não encontrado");
@@ -76,6 +96,7 @@ export class AuthService {
       id: u.id,
       nome: u.nome,
       email: u.email,
+      telefone: u.telefone,
       papel: u.papel,
       cliente: { id: u.cliente.id, nome: u.cliente.nome, modoOperacao: u.cliente.modoOperacao, demonstrativo: u.cliente.demonstrativo },
       aprovacoesPendentes: await this.repos.mensagens.contarRascunhosDoCliente(u.clienteId),

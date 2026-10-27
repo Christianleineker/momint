@@ -3,6 +3,10 @@ import type { DbClient } from "../prisma.js";
 export class RecuperacaoSenhaRepository {
   constructor(private readonly db: DbClient) {}
 
+  revogar(usuarioId: string) {
+    return this.db.recuperacaoSenha.deleteMany({ where: { usuarioId } });
+  }
+
   emitir(usuarioId: string, tokenHash: string, expiraEm: Date) {
     const dados = { tokenHash, expiraEm, usadaEm: null };
     return this.db.recuperacaoSenha.upsert({ where: { usuarioId }, create: { usuarioId, ...dados }, update: dados });

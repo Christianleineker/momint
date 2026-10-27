@@ -2,6 +2,7 @@ export interface Perfil {
   id: string;
   nome: string;
   email: string;
+  telefone?: string | null;
   papel: "ADMIN" | "GESTOR" | "VENDEDOR" | "ATENDENTE";
   cliente: { id: string; nome: string; modoOperacao: string; demonstrativo: boolean };
   aprovacoesPendentes: number;

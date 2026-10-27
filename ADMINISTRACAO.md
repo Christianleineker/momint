@@ -18,6 +18,12 @@ Novos sistemas começam sem leads, reuniões ou segmentação preenchida. O gest
 
 O painel permite cadastrar clientes com seu primeiro sistema, acrescentar sistemas, consultar as equipes e suspender ou reativar acessos. A exclusão é lógica, exige o nome do cliente, encerra todos os seus acessos e links de recuperação e preserva o histórico para suporte. A demonstração e a conta administrativa são protegidas.
 
+A exclusão possui uma segunda confirmação depois de digitar o nome. O servidor emite uma autorização de uso único vinculada ao cliente, administrador e versão da sessão, exige uma espera de cinco segundos e expira essa autorização em cinco minutos. Cancelar ou editar o cadastro invalida a confirmação.
+
+O sininho da administração lista os 50 eventos mais recentes, com leitura persistida no banco e contador de não lidas. Cadastros de cliente e sistema, exclusões, suspensões e edições geram eventos na mesma transação da alteração. O cadastro de um sistema é considerado uma venda para esses avisos; os eventos não representam pagamentos financeiros.
+
+O suporte administrativo edita nome e contato do cliente, nome e plano do sistema e nome, e-mail, telefone e senha dos usuários. Esses endpoints não aceitam alterações em documentos ou registros operacionais. A aba Meu perfil, também acessível por Editar perfil, permite que qualquer usuário atualize os próprios dados. Mudanças no e-mail ou senha exigem a senha atual e revogam sessões e links de recuperação anteriores, mantendo uma nova sessão no navegador atual. O e-mail do administrador continua fixo.
+
 Os indicadores representam os cadastros atuais: clientes não excluídos, sistemas vendidos (incluindo os suspensos), sistemas ativos e usuários ativos dos sistemas ativos. A demonstração e clientes excluídos ficam fora dos totais. Não representam um histórico financeiro de vendas.
 
 ## Verificação

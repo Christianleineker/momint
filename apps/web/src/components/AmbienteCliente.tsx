@@ -9,6 +9,7 @@ import { Badge, Botao, Cabecalho, Card, CardTitulo, FONTE_ROTULO, Metrica } from
 import { CampoSenha } from "./CampoSenha";
 import { enviar, ErroApi, lerJson } from "@/lib/api";
 import { ROTULO_PAPEL, type Perfil } from "@/lib/perfil";
+import { ConfiguracoesAbas } from "./ConfiguracoesAbas";
 
 const campo = "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-acento";
 const estagio = (s: string) => ({ APTO: "Apto a abordar", AGUARDANDO_APROVACAO: "Aguardando aprovação", EM_CADENCIA: "Em cadência", REUNIAO_MARCADA: "Reunião marcada", REUNIAO_REALIZADA: "Reunião realizada", SEM_CONTATO: "Sem contato" }[s] ?? s.toLowerCase().replaceAll("_", " "));
@@ -49,7 +50,7 @@ export function AmbienteCliente({ perfil }: { perfil: Perfil }) {
     "/gatilhos": <Gatilhos perfil={perfil} />,
     "/abordagens": <Abordagens perfil={perfil} />,
     "/reunioes": <Reunioes perfil={perfil} />,
-    "/configuracoes": <Configuracoes perfil={perfil} />,
+    "/configuracoes": <ConfiguracoesAbas perfil={perfil}><Configuracoes perfil={perfil} /></ConfiguracoesAbas>,
     "/segmentacao": <Segmentacao perfil={perfil} />,
     "/automacao": <Automacao perfil={perfil} />,
   };
