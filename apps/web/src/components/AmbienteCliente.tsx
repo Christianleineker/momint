@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import useSWR, { useSWRConfig } from "swr";
-import { Building2, CalendarCheck, CheckCircle2, Flame, Handshake, Plus, Save, Users } from "lucide-react";
+import { CalendarCheck, CheckCircle2, Flame, Handshake, Plus, Save, Users } from "lucide-react";
 import { Badge, Botao, Cabecalho, Card, CardTitulo, FONTE_ROTULO, Metrica } from "./ui";
 import { CampoSenha } from "./CampoSenha";
 import { enviar, ErroApi, lerJson } from "@/lib/api";
