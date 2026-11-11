@@ -17,6 +17,7 @@ export async function seed(db: PrismaClient) {
   await db.mensagemSuporte.deleteMany();
   await db.conversaSuporte.deleteMany();
   await db.desafioEmail.deleteMany();
+  await db.tentativaLogin.deleteMany();
   await db.notificacaoAdmin.deleteMany();
   await db.confirmacaoExclusao.deleteMany();
   await db.desfecho.deleteMany();

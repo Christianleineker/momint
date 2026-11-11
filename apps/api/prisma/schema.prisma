@@ -82,8 +82,24 @@ model Usuario {
   recuperacaoSenha RecuperacaoSenha?
   confirmacoesExclusao ConfirmacaoExclusao[]
   desafiosEmail DesafioEmail[]
+  historicoSenhas HistoricoSenha[]
 
   @@index([clienteId])
+}
+
+model TentativaLogin {
+  chave String @id
+  tentativas Int @default(0)
+  bloqueadoAte DateTime?
+}
+
+model HistoricoSenha {
+  usuarioId String
+  senhaHash String
+  criadoEm DateTime @default(now())
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@id([usuarioId, senhaHash])
 }
 
 model RecuperacaoSenha {

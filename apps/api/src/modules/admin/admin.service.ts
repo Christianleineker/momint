@@ -1,7 +1,7 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import type { HasherSenha } from "../../ports/hasher.js";
 import { Conflito, NaoEncontrado } from "../../shared/erros.js";
-import { EMAIL_ADMIN } from "../../shared/admin.js";
+import { EMAIL_ADMIN, emailNormalizado } from "../../shared/admin.js";
 import { createHash, randomBytes } from "node:crypto";
 
 export interface NovoSistema { nome: string; plano: string; responsavel: string; email: string; senha: string }
@@ -28,10 +28,11 @@ export class AdminService {
   }
 
   private async dadosSistema(dados: NovoSistema) {
-    if (dados.email === EMAIL_ADMIN || await this.db.usuario.findUnique({ where: { email: dados.email } })) throw new Conflito("E-mail já cadastrado ou reservado ao administrador geral.");
+    const email = emailNormalizado(dados.email);
+    if (email === EMAIL_ADMIN || await this.db.usuario.findUnique({ where: { email } })) throw new Conflito("E-mail já cadastrado ou reservado ao administrador geral.");
     return { nome: dados.nome, plano: dados.plano,
       icp: { create: { cnaes: [], portes: [], cidadeBase: "", ufBase: "", latBase: 0, lngBase: 0, raioKm: 40, fontesAtivas: [] } },
-      usuarios: { create: { nome: dados.responsavel, email: dados.email, senhaHash: await this.hasher.gerar(dados.senha), papel: "GESTOR" as const } } };
+      usuarios: { create: { nome: dados.responsavel, email, senhaHash: await this.hasher.gerar(dados.senha), papel: "GESTOR" as const } } };
   }
 
   async criarCliente(dados: { nome: string; documento?: string; sistema: NovoSistema }) {

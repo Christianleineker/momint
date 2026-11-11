@@ -10,6 +10,7 @@
     "db:reset": "prisma migrate reset --force --skip-seed && tsx prisma/seed.ts",
     "seed": "tsx prisma/seed.ts",
     "admin:preparar": "tsx scripts/preparar-admin.ts",
+    "admin:limpar-usuarios": "tsx scripts/limpar-usuarios.ts",
     "db:migrate": "prisma migrate deploy",
     "test": "vitest run",
     "test:unit": "vitest run test/unit",

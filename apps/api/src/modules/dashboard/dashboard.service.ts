@@ -19,12 +19,15 @@ export class DashboardService {
     const hoje = this.relogio.agora();
     const inicioMes = new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), 1));
 
-    const [comReuniaoRealizada, ganhos, reunioesMes, respostasQuentes, aprovacoesPendentes] = await Promise.all([
+    const [comReuniaoRealizada, ganhos, reunioesMes, respostasQuentes, aprovacoesPendentes, evolucao, porEstagio, ultimosLeads] = await Promise.all([
       this.repos.leads.contarComReuniaoRealizada(clienteId),
       this.repos.leads.contarComReuniaoRealizada(clienteId, "GANHO"),
       this.repos.reunioes.contarCriadasDesde(clienteId, inicioMes),
       this.repos.mensagens.contarRespostasQuentes(clienteId, new Date(hoje.getTime() - 30 * DIA_MS)),
       this.repos.mensagens.contarRascunhosDoCliente(clienteId),
+      this.evolucaoReunioes(clienteId, hoje),
+      this.leadsPorEstagio(clienteId),
+      this.ultimosLeads(clienteId, hoje),
     ]);
 
     return {
@@ -39,9 +42,9 @@ export class DashboardService {
         respostasQuentes,
         aprovacoesPendentes,
       },
-      evolucao: await this.evolucaoReunioes(clienteId, hoje),
-      porEstagio: await this.leadsPorEstagio(clienteId),
-      ultimosLeads: await this.ultimosLeads(clienteId, hoje),
+      evolucao,
+      porEstagio,
+      ultimosLeads,
     };
   }
 

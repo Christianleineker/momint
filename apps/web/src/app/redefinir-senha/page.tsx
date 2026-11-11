@@ -52,8 +52,9 @@ export default function RedefinirSenhaPage() {
     try {
       const resposta = await fetch("/api/auth/redefinir-senha", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, senha }) });
       if (!resposta.ok) {
-        if (resposta.status === 400) setEstado("invalido");
-        else setErro(resposta.status === 429 ? "Muitas tentativas. Aguarde alguns minutos." : "Não foi possível alterar a senha. Tente novamente.");
+        const corpo = await resposta.json().catch(() => null) as { codigo?: string; erro?: string } | null;
+        if (corpo?.codigo === "LINK_RECUPERACAO_INVALIDO") setEstado("invalido");
+        else setErro(corpo?.erro ?? (resposta.status === 429 ? "Muitas tentativas. Aguarde alguns minutos." : "Não foi possível alterar a senha. Tente novamente."));
         return;
       }
       setEstado("sucesso");

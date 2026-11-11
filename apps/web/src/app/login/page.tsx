@@ -29,11 +29,25 @@ export default function LoginPage() {
   const [carregando, setCarregando] = useState(false);
   const [pendente, setPendente] = useState<{ emailMascarado: string } | null>(null);
   const [reenvio, setReenvio] = useState(0);
+  const [bloqueadoAte, setBloqueadoAte] = useState(0);
+  const [espera, setEspera] = useState(0);
+  useEffect(() => {
+    if (!bloqueadoAte) return;
+    const atualizar = () => {
+      const restante = Math.max(0, Math.ceil((bloqueadoAte - Date.now()) / 1000));
+      setEspera(restante);
+      if (!restante) { setBloqueadoAte(0); setErro(""); }
+    };
+    atualizar();
+    const timer = window.setInterval(atualizar, 250);
+    return () => window.clearInterval(timer);
+  }, [bloqueadoAte]);
   useEffect(() => { let ativo = true; void fetch("/api/auth/login/pendente", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(d => { if (ativo && d?.requerCodigo) setPendente(d); }).catch(() => null); return () => { ativo = false; }; }, []);
   useEffect(() => { if (!reenvio) return; const timer = window.setTimeout(() => setReenvio(reenvio - 1), 1000); return () => window.clearTimeout(timer); }, [reenvio]);
 
   async function entrar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (espera > 0) return;
     setErro("");
     setCarregando(true);
 
@@ -53,7 +67,11 @@ export default function LoginPage() {
       });
 
       if (!resposta.ok) {
-        const corpo = (await resposta.json().catch(() => null)) as { erro?: string } | null;
+        const corpo = (await resposta.json().catch(() => null)) as { erro?: string; tentarNovamenteEm?: number } | null;
+        if (corpo?.tentarNovamenteEm) {
+          setEspera(corpo.tentarNovamenteEm);
+          setBloqueadoAte(Date.now() + corpo.tentarNovamenteEm * 1000);
+        }
         setErro(corpo?.erro ?? "Não foi possível entrar. Confira seus dados e tente novamente.");
         return;
       }
@@ -131,7 +149,7 @@ export default function LoginPage() {
           </>}
           {erro && (
             <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-              {erro}
+              {espera > 0 ? `Você errou 3 vezes seguidas. Aguarde ${espera} segundos e tente novamente.` : erro}
             </p>
           )}
           {!pendente && <div className="flex justify-end">
@@ -141,10 +159,10 @@ export default function LoginPage() {
           </div>}
           <button
             type="submit"
-            disabled={carregando}
+            disabled={carregando || espera > 0}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-acento py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {carregando ? "Aguarde..." : pendente ? "Confirmar código e entrar" : "Entrar"} <ArrowRight className="h-4 w-4" />
+            {espera > 0 ? `Tentar novamente em ${espera}s` : carregando ? "Aguarde..." : pendente ? "Confirmar código e entrar" : "Entrar"} <ArrowRight className="h-4 w-4" />
           </button>
           {pendente && <div className="flex flex-wrap justify-between gap-3 text-xs"><button type="button" disabled={carregando || reenvio > 0} className="text-acento disabled:text-slate-400" onClick={async () => { setCarregando(true); setErro(""); try { await enviar("/api/auth/login/reenviar", "POST"); setReenvio(60); } catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível reenviar."); } finally { setCarregando(false); } }}>{reenvio ? `Reenviar em ${reenvio}s` : "Reenviar código"}</button><button type="button" disabled={carregando} className="text-slate-500" onClick={async () => { await enviar("/api/auth/logout", "POST"); setPendente(null); setErro(""); }}>Usar outra conta</button></div>}
           <div className="flex items-center gap-3">

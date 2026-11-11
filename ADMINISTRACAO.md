@@ -45,3 +45,17 @@ O painel Atendimentos é exclusivo de ADMIN, consultado no banco em cada requisi
 ## Verificação
 
 `npm test` usa exclusivamente `momint_test` e reinicializa esse banco. `npm run typecheck -w apps/api`, `npm run typecheck -w apps/web` e `npm run build -w apps/web` verificam a aplicação. Os testes cobrem administração, isolamento de sistemas e conversas, primeiro acesso, segundo fator, expiração, limites de tentativas, uso único concorrente e respostas exclusivas de ADMIN.
+
+## Proteção de login e senhas
+
+Três falhas consecutivas bloqueiam o login daquele e-mail por 30 segundos. O servidor devolve HTTP 429, `Retry-After` e o tempo restante; a tela mostra a contagem regressiva. O estado é compartilhado pelo banco entre reinícios e instâncias, independentemente do IP. Um acerto ou o término do bloqueio inicia uma nova sequência. As chaves de controle são hashes dos e-mails normalizados.
+
+E-mails de acesso são armazenados em minúsculas e sem espaços nas extremidades. O banco exige esse formato e garante unicidade, inclusive em cadastros concorrentes. A recuperação recusa a senha atual e todas as senhas anteriores registradas, sem consumir o link nem encerrar sessões quando a senha é recusada. A migração registra as senhas atuais; alterações posteriores, inclusive pelo admin e pelo perfil, preservam o hash anterior automaticamente no banco. Senhas anteriores à instalação desse histórico não podem ser reconstruídas.
+
+`npm run admin:limpar-usuarios -w apps/api` é uma operação pontual que remove todos os usuários exceto `jadiframe@gmail.com`. Não faz parte da inicialização. O comando aborta se o admin estiver ausente ou inativo, preserva suas credenciais e mantém leads, mensagens e reuniões. Referências aos usuários removidos ficam sem responsável; links de recuperação, códigos e históricos desses usuários são excluídos junto com as contas. Novos cadastros legítimos continuam disponíveis após a limpeza.
+
+## Inicialização e desempenho
+
+`iniciar-momint.cmd` inicia a interface com `next start`. Na primeira execução ou após mudanças no código/dependências, `scripts/preparar-web.mjs` compila a interface antes de abri-la. As execuções seguintes reutilizam o build quando sua assinatura corresponde aos arquivos atuais. `npm run dev` continua disponível para desenvolvimento com recarga automática; não execute `next dev` e `next start` simultaneamente sobre a mesma pasta `.next`.
+
+A validação de sessão continua consultando o banco em cada requisição para revogar acessos imediatamente, usando uma única consulta que seleciona somente o ID. Leituras de perfil repetidas no mesmo render do servidor são deduplicadas, e as consultas independentes do dashboard executam em paralelo.

@@ -54,12 +54,14 @@ try {
     }
     if (-not (Testar-Url 'http://localhost:4000/api/health')) {
         if (Testar-Porta 4000) { throw 'A porta 4000 esta ocupada por outro servico.' }
-        $apiMomint = Iniciar-Processo 'api' (Join-Path $raizMomint 'apps\api') '../../node_modules/tsx/dist/cli.mjs watch src/main.ts'
+        $apiMomint = Iniciar-Processo 'api' (Join-Path $raizMomint 'apps\api') '../../node_modules/tsx/dist/cli.mjs src/main.ts'
         Aguardar-Servico 'api' { Testar-Url 'http://localhost:4000/api/health' } $apiMomint
     }
     if (-not (Testar-Url 'http://localhost:3000/login')) {
         if (Testar-Porta 3000) { throw 'A porta 3000 esta ocupada por outro servico.' }
-        $webMomint = Iniciar-Processo 'web' (Join-Path $raizMomint 'apps\web') '../../node_modules/next/dist/bin/next dev -p 3000'
+        & $nodeMomint (Join-Path $raizMomint 'scripts\preparar-web.mjs')
+        if ($LASTEXITCODE -ne 0) { throw 'Falha ao compilar a interface. Consulte a saída acima.' }
+        $webMomint = Iniciar-Processo 'web' (Join-Path $raizMomint 'apps\web') '../../node_modules/next/dist/bin/next start -p 3000'
         Aguardar-Servico 'web' { Testar-Url 'http://localhost:3000/login' } $webMomint
     }
     Write-Host ''

@@ -1,5 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import type { DbClient } from "../prisma.js";
+import type { Sessao } from "../../../shared/sessao.js";
+import { EMAIL_ADMIN } from "../../../shared/admin.js";
 
 const RESUMO = { id: true, nome: true, email: true, papel: true, ativo: true } as const;
 
@@ -12,6 +14,25 @@ export class UsuarioRepository {
 
   buscarComCliente(id: string) {
     return this.db.usuario.findUnique({ where: { id }, include: { cliente: { include: { contaCliente: true } } } });
+  }
+
+  validarSessao(sessao: Sessao) {
+    return this.db.usuario.findFirst({
+      where: {
+        id: sessao.sub, clienteId: sessao.clienteId, papel: sessao.papel, versaoSessao: sessao.versao ?? 0, ativo: true,
+        ...(sessao.papel === "ADMIN" ? { email: EMAIL_ADMIN } : {}),
+        cliente: { ativo: true, OR: [{ contaClienteId: null }, { contaCliente: { excluidoEm: null } }] },
+      },
+      select: { id: true },
+    });
+  }
+
+  bloquearSenha(id: string) {
+    return this.db.$queryRaw`SELECT "id" FROM "Usuario" WHERE "id" = ${id} FOR UPDATE`;
+  }
+
+  historicoSenhas(usuarioId: string) {
+    return this.db.historicoSenha.findMany({ where: { usuarioId }, select: { senhaHash: true } });
   }
 
   buscarDoCliente(clienteId: string, id: string) {

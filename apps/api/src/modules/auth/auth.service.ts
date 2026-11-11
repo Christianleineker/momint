@@ -1,6 +1,6 @@
 import type { Repositorios } from "../../infra/database/repositories/index.js";
 import type { HasherSenha } from "../../ports/hasher.js";
-import { AcessoNegado, EntradaInvalida, NaoAutenticado, NaoEncontrado } from "../../shared/erros.js";
+import { AcessoNegado, EntradaInvalida, LinkRecuperacaoInvalido, LoginBloqueado, NaoAutenticado, NaoEncontrado } from "../../shared/erros.js";
 import type { Sessao } from "../../shared/sessao.js";
 import { createHash, randomBytes } from "node:crypto";
 import type { Email } from "../../ports/email.js";
@@ -22,15 +22,30 @@ export class AuthService {
 
   /** Valida credenciais e devolve os dados da sessão (o token é emitido na camada HTTP). */
   async autenticar(email: string, senha: string): Promise<{ sessao: Sessao; nome: string }> {
-    const usuario = await this.repos.usuarios.buscarPorEmail(email);
-    const valido = usuario?.ativo && usuario.cliente.ativo && !usuario.cliente.contaCliente?.excluidoEm && adminPermitido(usuario) && (await this.hasher.comparar(senha, usuario.senhaHash));
-    if (!usuario || !valido) throw new NaoAutenticado("E-mail ou senha inválidos");
+    const chave = hashToken(email.trim().toLowerCase());
+    const resultado = await this.uow.executar(async repos => {
+      const tentativa = await repos.tentativasLogin.bloquear(chave);
+      const agora = this.agora();
+      if (tentativa?.bloqueadoAte && tentativa.bloqueadoAte > agora) return { aguardar: Math.ceil((tentativa.bloqueadoAte.getTime() - agora.getTime()) / 1000) };
+      const usuario = await repos.usuarios.buscarPorEmail(email);
+      const valido = usuario?.ativo && usuario.cliente.ativo && !usuario.cliente.contaCliente?.excluidoEm && adminPermitido(usuario) && (await this.hasher.comparar(senha, usuario.senhaHash));
+      if (!usuario || !valido) {
+        const falhas = (tentativa?.bloqueadoAte ? 0 : tentativa?.tentativas ?? 0) + 1;
+        await repos.tentativasLogin.registrar(chave, falhas, falhas >= 3 ? new Date(agora.getTime() + 30_000) : null);
+        return { aguardar: falhas >= 3 ? 30 : 0 };
+      }
+      await repos.tentativasLogin.limpar(chave);
+      return { usuario };
+    });
+    // Lançar depois do commit preserva a contagem das tentativas recusadas.
+    if (resultado.aguardar) throw new LoginBloqueado(resultado.aguardar);
+    const usuario = resultado.usuario;
+    if (!usuario) throw new NaoAutenticado("E-mail ou senha inválidos");
     return { sessao: { sub: usuario.id, clienteId: usuario.clienteId, papel: usuario.papel, versao: usuario.versaoSessao }, nome: usuario.nome };
   }
 
   async sessaoValida(sessao: Sessao) {
-    const usuario = await this.repos.usuarios.buscarComCliente(sessao.sub);
-    return !!usuario?.ativo && usuario.cliente.ativo && !usuario.cliente.contaCliente?.excluidoEm && adminPermitido(usuario) && usuario.clienteId === sessao.clienteId && usuario.papel === sessao.papel && usuario.versaoSessao === (sessao.versao ?? 0);
+    return !!await this.repos.usuarios.validarSessao(sessao);
   }
 
   async solicitarRecuperacao(email: string) {
@@ -55,11 +70,20 @@ export class AuthService {
   }
 
   async redefinirSenha(token: string, senha: string) {
-    const senhaHash = await this.hasher.gerar(senha);
     const usuario = await this.uow.executar(async (repos) => {
-      if (!await repos.recuperacoes.consumir(hashToken(token), this.agora())) throw new EntradaInvalida("Link inválido ou expirado. Solicite um novo link de recuperação.");
+      const inicial = await repos.recuperacoes.buscar(hashToken(token));
+      if (!inicial) throw new LinkRecuperacaoInvalido();
+      await repos.usuarios.bloquearSenha(inicial.usuarioId);
       const recuperacao = await repos.recuperacoes.buscar(hashToken(token));
-      return repos.usuarios.redefinirSenha(recuperacao!.usuarioId, senhaHash);
+      if (!recuperacao || recuperacao.usadaEm || recuperacao.expiraEm <= this.agora() || !recuperacao.usuario.ativo || !recuperacao.usuario.cliente.ativo || recuperacao.usuario.cliente.contaCliente?.excluidoEm || !adminPermitido(recuperacao.usuario)) throw new LinkRecuperacaoInvalido();
+      const anteriores = await repos.usuarios.historicoSenhas(recuperacao.usuarioId);
+      const hashes = new Set([recuperacao.usuario.senhaHash, ...anteriores.map(s => s.senhaHash)]);
+      for (const hash of hashes) {
+        if (await this.hasher.comparar(senha, hash)) throw new EntradaInvalida("Você não pode usar uma senha antiga. Escolha uma senha que ainda não utilizou.");
+      }
+      const senhaHash = await this.hasher.gerar(senha);
+      if (!await repos.recuperacoes.consumir(hashToken(token), this.agora())) throw new LinkRecuperacaoInvalido();
+      return repos.usuarios.redefinirSenha(recuperacao.usuarioId, senhaHash);
     });
     return usuario.email;
   }

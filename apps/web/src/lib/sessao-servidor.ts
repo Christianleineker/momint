@@ -1,8 +1,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Perfil } from "./perfil";
+import { cache } from "react";
 
-export async function obterPerfil(): Promise<Perfil> {
+export const obterPerfil = cache(async (): Promise<Perfil> => {
   const cookie = (await cookies()).get("momint_token");
   if (!cookie) redirect("/login");
   const resposta = await fetch(`${process.env.API_URL ?? "http://localhost:4000"}/api/auth/me`, {
@@ -11,4 +12,4 @@ export async function obterPerfil(): Promise<Perfil> {
   if (resposta.status === 401 || resposta.status === 403) redirect("/login");
   if (!resposta.ok) throw new Error("Não foi possível verificar sua sessão. Tente novamente.");
   return resposta.json();
-}
+});

@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import type { AcessoService } from "./acesso.service.js";
 import type { Sessao } from "../../shared/sessao.js";
 
-const loginBody = z.object({ email: z.string().email(), senha: z.string().min(1) });
+const loginBody = z.object({ email: z.string().trim().toLowerCase().email().max(254), senha: z.string().min(1).max(200) });
 const SETE_DIAS_S = 7 * 86_400;
 const recuperacaoBody = z.object({ email: z.string().trim().toLowerCase().email() });
 const tokenBody = z.object({ token: z.string().regex(/^[a-f0-9]{64}$/) });
@@ -41,7 +41,7 @@ export const authRoutes =
       const { email } = recuperacaoBody.parse(req.body);
       return `recuperacao-email:${createHash("sha256").update(email).digest("hex")}`;
     } });
-    app.post("/auth/login", { config: { rateLimit: { max: 30, timeWindow: "15 minutes" } } }, async (req, rep) => {
+    app.post("/auth/login", { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } }, async (req, rep) => {
       const { email, senha } = loginBody.parse(req.body);
       const { sessao, nome } = await auth.autenticar(email, senha);
       const desafio = await acesso.iniciarLogin(sessao);
