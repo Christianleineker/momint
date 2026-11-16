@@ -88,11 +88,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
-      <div className="relative isolate hidden overflow-hidden bg-navy px-10 py-12 text-white lg:flex lg:flex-col lg:justify-center 2xl:px-16">
+    <div className="grid min-h-dvh lg:grid-cols-2">
+      <div className="login-apresentacao relative isolate hidden overflow-hidden bg-navy text-white lg:flex lg:flex-col lg:justify-center">
         <Image src="/images/login-office.webp" alt="" fill priority sizes="(min-width: 1024px) 50vw, 1px" className="object-cover object-left" />
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(7,23,50,0.55)_0%,rgba(7,23,50,0.3)_55%,rgba(7,23,50,0.05)_100%)]" />
-        <div className="relative z-10 flex flex-col gap-8">
+        <div className="login-apresentacao-conteudo relative z-10 flex flex-col">
           <Logo />
           <p className="text-xs tracking-[0.3em] text-slate-400">RELACIONAMENTO • PROCESSOS • RESULTADOS</p>
           <h1 className="max-w-md text-4xl font-bold leading-tight">
@@ -101,7 +101,7 @@ export default function LoginPage() {
           <p className="max-w-sm text-base leading-relaxed text-slate-200">
             Centralize seus leads, automatize seu processo comercial e acompanhe cada etapa em tempo real, com o Momint.
           </p>
-          <ul className="max-w-sm space-y-6">
+          <ul className="login-destaques max-w-sm">
             {DESTAQUES.map(({ icone: Icone, titulo, texto }) => (
               <li key={titulo} className="flex gap-4">
                 <div className="rounded-xl bg-white/10 p-3">
@@ -128,8 +128,8 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <div className="flex flex-col items-center justify-center gap-8 p-6">
-        <form onSubmit={entrar} className="w-full max-w-lg space-y-5 rounded-2xl bg-white p-6 shadow-lg sm:p-10">
+      <div className="login-coluna flex min-w-0 flex-col items-center justify-center">
+        <form onSubmit={entrar} className="login-form w-full max-w-lg rounded-2xl bg-white shadow-lg">
           <div className="flex justify-center">
             <Logo claro={false} />
           </div>

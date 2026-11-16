@@ -23,24 +23,36 @@ export class AuthService {
   /** Valida credenciais e devolve os dados da sessão (o token é emitido na camada HTTP). */
   async autenticar(email: string, senha: string): Promise<{ sessao: Sessao; nome: string }> {
     const chave = hashToken(email.trim().toLowerCase());
+
+    // Recusa cedo quem já está bloqueado: evita gastar bcrypt e abrir transação.
+    const bloqueio = await this.repos.tentativasLogin.buscar(chave);
+    const entrada = this.agora();
+    if (bloqueio?.bloqueadoAte && bloqueio.bloqueadoAte > entrada) {
+      throw new LoginBloqueado(Math.ceil((bloqueio.bloqueadoAte.getTime() - entrada.getTime()) / 1000));
+    }
+
+    // Comparar a senha custa centenas de ms de CPU: fica fora da transação para
+    // não segurar conexão do pool nem a trava da conta enquanto roda.
+    const usuario = await this.repos.usuarios.buscarPorEmail(email);
+    const valido = !!usuario?.ativo && usuario.cliente.ativo && !usuario.cliente.contaCliente?.excluidoEm && adminPermitido(usuario) && (await this.hasher.comparar(senha, usuario.senhaHash));
+
+    // Só o registro do resultado é transacional — a trava serializa a contagem
+    // de falhas da mesma conta, inclusive entre instâncias da API.
     const resultado = await this.uow.executar(async repos => {
       const tentativa = await repos.tentativasLogin.bloquear(chave);
       const agora = this.agora();
       if (tentativa?.bloqueadoAte && tentativa.bloqueadoAte > agora) return { aguardar: Math.ceil((tentativa.bloqueadoAte.getTime() - agora.getTime()) / 1000) };
-      const usuario = await repos.usuarios.buscarPorEmail(email);
-      const valido = usuario?.ativo && usuario.cliente.ativo && !usuario.cliente.contaCliente?.excluidoEm && adminPermitido(usuario) && (await this.hasher.comparar(senha, usuario.senhaHash));
-      if (!usuario || !valido) {
+      if (!valido) {
         const falhas = (tentativa?.bloqueadoAte ? 0 : tentativa?.tentativas ?? 0) + 1;
         await repos.tentativasLogin.registrar(chave, falhas, falhas >= 3 ? new Date(agora.getTime() + 30_000) : null);
         return { aguardar: falhas >= 3 ? 30 : 0 };
       }
       await repos.tentativasLogin.limpar(chave);
-      return { usuario };
+      return { aguardar: 0 };
     });
     // Lançar depois do commit preserva a contagem das tentativas recusadas.
     if (resultado.aguardar) throw new LoginBloqueado(resultado.aguardar);
-    const usuario = resultado.usuario;
-    if (!usuario) throw new NaoAutenticado("E-mail ou senha inválidos");
+    if (!valido || !usuario) throw new NaoAutenticado("E-mail ou senha inválidos");
     return { sessao: { sub: usuario.id, clienteId: usuario.clienteId, papel: usuario.papel, versao: usuario.versaoSessao }, nome: usuario.nome };
   }
 

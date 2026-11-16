@@ -78,3 +78,17 @@ body {
   .access-card { animation: none; transition: none; }
   .access-card:hover { transform: none; }
 }
+
+/* Trava de rolagem horizontal: nenhuma tela deve gerar scroll lateral.
+   `clip` nao cria contexto de rolagem, entao nao quebra `position: sticky`. */
+html, body { overflow-x: clip; }
+
+/* Login — escala fluida pela altura da janela para caber sem rolagem.
+   Os maximos reproduzem o espacamento original em telas altas (>= 900px). */
+.login-coluna { gap: clamp(14px, 3.6vh, 32px); padding: clamp(12px, 2.7vh, 24px) clamp(16px, 2vw, 24px); }
+.login-form { display: flex; flex-direction: column; gap: clamp(9px, 2.1vh, 20px); padding: clamp(18px, 4.2vh, 40px) clamp(20px, 2.4vw, 40px); }
+.login-form h2 { font-size: clamp(19px, 2.6vh, 24px); }
+.login-apresentacao { padding: clamp(24px, 5vh, 48px) clamp(24px, 3vw, 40px); }
+.login-apresentacao h1 { font-size: clamp(26px, 4.6vh, 36px); }
+.login-apresentacao-conteudo { gap: clamp(14px, 3.4vh, 32px); }
+.login-destaques { display: flex; flex-direction: column; gap: clamp(12px, 2.6vh, 24px); }
