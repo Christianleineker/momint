@@ -44,7 +44,9 @@ export function Sidebar({ pendentes = 0, perfil, recolhidoInicial = false }: { p
   return (
     <aside id="menu-lateral" className={`flex shrink-0 flex-col bg-navy text-slate-200 transition-[width] duration-200 ${recolhido ? "w-16" : "w-16 md:w-64"}`}>
       <div className={`px-4 py-7 md:px-6 ${recolhido ? "flex flex-col items-center gap-5" : "flex items-center justify-between gap-2"}`}>
-        <div className={recolhido ? "[&_span]:hidden" : "[&_span]:hidden md:[&_span]:inline"}>
+        {/* Recolhido, o topo fica só com o hamburguer. Abaixo de `md` não há
+            botão, então a marca continua ali para o cabeçalho não ficar vazio. */}
+        <div className={recolhido ? "[&_span]:hidden md:hidden" : "[&_span]:hidden md:[&_span]:inline"}>
           <Logo />
         </div>
         <button
