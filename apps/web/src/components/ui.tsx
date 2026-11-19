@@ -21,8 +21,8 @@ export function Cabecalho({ titulo, subtitulo, acoes }: { titulo: string; subtit
   return (
     <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 className="text-3xl font-bold text-navy">{titulo}</h1>
-        <p className="mt-1 text-slate-500">{subtitulo}</p>
+        <h1 className="text-2xl font-semibold text-navy">{titulo}</h1>
+        <p className="mt-1 text-sm text-slate-500">{subtitulo}</p>
       </div>
       {acoes && <div className="flex gap-3">{acoes}</div>}
     </header>
@@ -30,7 +30,7 @@ export function Cabecalho({ titulo, subtitulo, acoes }: { titulo: string; subtit
 }
 
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <section className={`rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm ${className}`}>{children}</section>;
+  return <section className={`rounded-xl border border-slate-200 bg-white p-4 shadow-sm ${className}`}>{children}</section>;
 }
 
 export function CardTitulo({ icone: Icone, titulo, subtitulo, extra }: { icone?: LucideIcon; titulo: string; subtitulo?: string; extra?: React.ReactNode }) {
@@ -52,8 +52,8 @@ const TONS = {
   azul: "bg-blue-50 text-blue-600",
   verde: "bg-emerald-50 text-emerald-600",
   roxo: "bg-violet-50 text-violet-600",
-  vermelho: "bg-red-50 text-red-600",
-  amarelo: "bg-amber-50 text-amber-600",
+  vermelho: "bg-red-50 text-red-700",
+  amarelo: "bg-amber-50 text-amber-700",
   cinza: "bg-slate-100 text-slate-600",
 } as const;
 export type Tom = keyof typeof TONS;
@@ -84,7 +84,7 @@ export function Metrica({ icone: Icone, rotulo, valor, detalhe, tom = "azul", de
 }
 
 export function Badge({ children, tom = "cinza" }: { children: React.ReactNode; tom?: Tom }) {
-  return <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${TONS[tom]}`}>{children}</span>;
+  return <span className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${TONS[tom]}`}>{children}</span>;
 }
 
 export const PRIORIDADE_TOM: Record<string, Tom> = { ALTA: "vermelho", MEDIA: "amarelo", BAIXA: "cinza" };
@@ -99,7 +99,7 @@ export function Botao({ children, variante = "primario", ...props }: React.Butto
     perigo: "border border-red-200 bg-white text-red-600 hover:bg-red-50",
   }[variante];
   return (
-    <button {...props} className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${cls} ${props.className ?? ""}`}>
+    <button {...props} className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition ${cls} ${props.className ?? ""}`}>
       {children}
     </button>
   );
