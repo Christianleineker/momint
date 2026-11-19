@@ -29,22 +29,17 @@ export default function DashboardPage() {
         <Metrica icone={CheckCircle2} rotulo="Aprovações pendentes" valor="4" tom="roxo" />
       </div>
 
-      <Card className="mb-6">
-        <CardTitulo icone={TrendingUp} titulo="Evolução das reuniões" subtitulo="Reuniões marcadas e realizadas nos últimos 6 meses." />
-        <Esboco>Gráfico de linha (Recharts) — abr a set/2026</Esboco>
-      </Card>
-
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardTitulo icone={Users} titulo="Leads por estágio" subtitulo="Distribuição no funil." />
           <ul className="space-y-2">
             {ESTAGIOS.map(([rotulo, n]) => (
               <li key={rotulo} className="flex items-center gap-3 text-sm">
-                <span className="w-44 text-slate-600">{rotulo}</span>
-                <div className="h-2 flex-1 rounded-full bg-slate-100">
-                  <div className="h-2 rounded-full bg-acento" style={{ width: `${(n / max) * 100}%` }} />
+                <span className="w-44 shrink-0 text-slate-600">{rotulo}</span>
+                <div className="h-2.5 flex-1 rounded-full bg-slate-100">
+                  <div className="h-2.5 rounded-full bg-acento" style={{ width: `${(n / max) * 100}%` }} />
                 </div>
-                <span className="w-6 text-right font-semibold">{n}</span>
+                <span className="w-6 text-right font-semibold tabular-nums text-navy">{n}</span>
               </li>
             ))}
           </ul>
