@@ -1,11 +1,13 @@
 import { Cabecalho } from "@/components/ui";
+import { obterPerfil } from "@/lib/sessao-servidor";
 import { AbordagensFila } from "./AbordagensFila";
 
-export default function AbordagensPage() {
+export default async function AbordagensPage() {
+  const perfil = await obterPerfil();
   return (
     <>
-      <Cabecalho titulo="Fila de Aprovação" subtitulo="Mensagens rascunhadas pela IA aguardando revisão (modo Copiloto)." />
-      <AbordagensFila />
+      <Cabecalho titulo="Abordagens" subtitulo="Fila de aprovação: revise os rascunhos da IA antes de cada envio." />
+      <AbordagensFila remetente={`${perfil.nome} · ${perfil.cliente.nome}`} />
     </>
   );
 }
