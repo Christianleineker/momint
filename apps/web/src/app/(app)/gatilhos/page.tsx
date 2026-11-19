@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Building2, ChartNoAxesColumnIncreasing, FileText, Plus, Search, Users, Zap } from "lucide-react";
-import { Badge, Botao, Cabecalho, Card, CardTitulo, FONTE_ROTULO, FONTE_TOM, Metrica, PRIORIDADE_ROTULO, PRIORIDADE_TOM } from "@/components/ui";
+import { AlertTriangle, Building2, FileText, HardHat, Layers, Plus, Search, Users, Zap } from "lucide-react";
+import { Badge, Botao, Cabecalho, Card, FONTE_ROTULO, FONTE_TOM, Metrica, PRIORIDADE_ROTULO, PRIORIDADE_TOM } from "@/components/ui";
 import { DialogoGatilho, MenuGatilho } from "./GatilhoAcoes";
 import type { Acao, Dialogo, Gatilho } from "./GatilhoAcoes";
 import { chaveResponsavel, corrigirResponsaveis, responsaveisDisponiveis } from "./responsaveis";
@@ -13,9 +13,7 @@ const GATILHOS_INICIAIS: Gatilho[] = [
   { id: "pncp", nome: "Nova licitação no PNCP", descricao: "Licitações de construção e impermeabilização", fonte: "PNCP", criterio: "Licitação publicada", responsavel: "Carla Dias", ativo: true, ultimaOcorrencia: "há 4 h", leads: 86 },
   { id: "cnpj", nome: "Nova empresa no CNPJ", descricao: "Empresas abertas no segmento de construção", fonte: "CNPJ_NOVO", criterio: "Novo CNPJ registrado", responsavel: "Gestor ImperSul", ativo: false, ultimaOcorrencia: "há 1 dia", leads: 38 },
 ];
-const ICONES = { CNO: Building2, PNCP: FileText, CNPJ_NOVO: Users };
-// Valores de demonstração até integrar os indicadores e o histórico da API.
-const INDICADORES_DEMO = { novosHoje: 28, taxaConversao: "18%" };
+const ICONES = { CNO: HardHat, PNCP: FileText, CNPJ_NOVO: Building2 };
 
 function gatilhoValido(valor: unknown): valor is Gatilho {
   if (!valor || typeof valor !== "object") return false;
@@ -40,6 +38,8 @@ const EMPRESAS = Array.from(new Set(EVENTOS.map((e) => e.empresa))).map((empresa
   return { ...eventos[0], tipos: Array.from(new Set(eventos.map((e) => e.tipo))), resumo: eventos.map((e) => e.resumo).join(" · ") };
 });
 
+const campoFiltro = "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-acento focus:ring-2 focus:ring-blue-100";
+
 export default function GatilhosPage() {
   const [gatilhos, setGatilhos] = useState(GATILHOS_INICIAIS);
   const [carregado, setCarregado] = useState(false);
@@ -47,6 +47,9 @@ export default function GatilhosPage() {
   const [busca, setBusca] = useState("");
   const [fonte, setFonte] = useState("");
   const [status, setStatus] = useState("");
+  const [eventoBusca, setEventoBusca] = useState("");
+  const [eventoTipo, setEventoTipo] = useState("");
+  const [eventoPrioridade, setEventoPrioridade] = useState("");
   const [dialogo, setDialogo] = useState<Dialogo | null>(null);
   const [aviso, setAviso] = useState("");
 
@@ -101,21 +104,28 @@ export default function GatilhosPage() {
   const filtrados = gatilhos.filter((g) => `${g.nome} ${g.descricao} ${g.responsavel}`.toLocaleLowerCase("pt-BR").includes(busca.toLocaleLowerCase("pt-BR"))
     && (!fonte || g.fonte === fonte) && (!status || g.ativo === (status === "ativo")));
 
+  const empresasFiltradas = EMPRESAS.filter((e) => e.empresa.toLocaleLowerCase("pt-BR").includes(eventoBusca.trim().toLocaleLowerCase("pt-BR"))
+    && (!eventoTipo || e.tipos.includes(eventoTipo)) && (!eventoPrioridade || e.prioridade === eventoPrioridade));
+
+  const ativos = gatilhos.filter((g) => g.ativo).length;
+  const altaPrioridade = EVENTOS.filter((e) => e.prioridade === "ALTA").length;
+  const empilhadas = EMPRESAS.filter((e) => e.empilhados >= 2).length;
+
   return (
     <>
       <Cabecalho
         titulo="Gatilhos"
-        subtitulo="Monitore eventos e sinais que podem gerar novas oportunidades."
+        subtitulo="Monitore eventos e sinais públicos que indicam novas oportunidades."
         acoes={<Botao disabled={!carregado} onClick={novoGatilho}><Plus className="h-4 w-4" /> Novo gatilho</Botao>}
       />
-      <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Metrica icone={Zap} rotulo="Gatilhos ativos" valor={carregado ? String(gatilhos.filter((g) => g.ativo).length) : "..."} tom="azul" />
-        <Metrica icone={FileText} rotulo="Novos hoje" valor={String(INDICADORES_DEMO.novosHoje)} tom="azul" />
-        <Metrica icone={Users} rotulo="Leads gerados" valor={carregado ? gatilhos.reduce((soma, g) => soma + g.leads, 0).toLocaleString("pt-BR") : "..."} tom="azul" />
-        <Metrica icone={ChartNoAxesColumnIncreasing} rotulo="Taxa de conversão" valor={INDICADORES_DEMO.taxaConversao} tom="azul" />
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Metrica icone={Zap} rotulo="Gatilhos ativos" valor={carregado ? String(ativos) : "..."} tom="azul" />
+        <Metrica icone={AlertTriangle} rotulo="Prioridade alta" valor={String(altaPrioridade)} tom="vermelho" />
+        <Metrica icone={Users} rotulo="Leads gerados" valor={carregado ? gatilhos.reduce((soma, g) => soma + g.leads, 0).toLocaleString("pt-BR") : "..."} tom="verde" />
+        <Metrica icone={Layers} rotulo="Empresas com gatilhos empilhados" valor={String(empilhadas)} tom="roxo" />
       </div>
       <div className="mb-5 flex gap-6 border-b border-slate-200" role="tablist" aria-label="Visualizações de gatilhos">
-        {[{ id: "gatilhos", nome: "Meus gatilhos" }, { id: "eventos", nome: "Eventos detectados" }].map(({ id, nome }) => (
+        {[{ id: "gatilhos", nome: "Meus gatilhos" }, { id: "eventos", nome: "Radar de eventos" }].map(({ id, nome }) => (
           <button key={id} id={`aba-${id}`} type="button" role="tab" aria-selected={aba === id} aria-controls={`painel-${id}`} tabIndex={aba === id ? 0 : -1} className={`border-b-2 px-1 pb-3 text-sm font-medium ${aba === id ? "border-acento text-acento" : "border-transparent text-slate-500 hover:text-navy"}`} onClick={() => setAba(id)} onKeyDown={(event) => {
             if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
               event.preventDefault();
@@ -130,31 +140,31 @@ export default function GatilhosPage() {
       {aba === "gatilhos" ? (
         <section id="painel-gatilhos" role="tabpanel" aria-labelledby="aba-gatilhos">
           <div className="mb-4 flex flex-wrap gap-3">
-            <label className="flex min-w-48 flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+            <label className="flex min-w-48 flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
               <Search aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400" />
               <input aria-label="Buscar gatilho" placeholder="Buscar gatilho ou responsável..." value={busca} onChange={(event) => setBusca(event.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
             </label>
-            <select aria-label="Filtrar por fonte" value={fonte} onChange={(event) => setFonte(event.target.value)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"><option value="">Todas as fontes</option>{Object.entries(FONTE_ROTULO).map(([codigo, nome]) => <option key={codigo} value={codigo}>{nome}</option>)}</select>
-            <select aria-label="Filtrar por status" value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"><option value="">Todos os status</option><option value="ativo">Ativo</option><option value="pausado">Pausado</option></select>
+            <select aria-label="Filtrar por fonte" value={fonte} onChange={(event) => setFonte(event.target.value)} className={campoFiltro}><option value="">Todas as fontes</option>{Object.entries(FONTE_ROTULO).map(([codigo, nome]) => <option key={codigo} value={codigo}>{nome}</option>)}</select>
+            <select aria-label="Filtrar por status" value={status} onChange={(event) => setStatus(event.target.value)} className={campoFiltro}><option value="">Todos os status</option><option value="ativo">Ativo</option><option value="pausado">Pausado</option></select>
           </div>
-          <div className="relative overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <div className="relative overflow-x-auto rounded-xl border border-slate-200 bg-white">
             <table className="w-full min-w-[920px] text-left text-sm">
-              <thead className="bg-blue-50 text-xs font-medium text-navy">
-                <tr>{["Nome do gatilho", "Fonte", "Critério", "Responsável", "Status", "Última ocorrência", "Leads gerados"].map((nome) => <th key={nome} scope="col" className="px-4 py-4 font-medium">{nome}</th>)}<th scope="col" className="px-3 py-4"><span className="sr-only">Ações</span></th></tr>
+              <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500">
+                <tr>{["Nome do gatilho", "Fonte", "Critério", "Responsável", "Status", "Última ocorrência", "Leads gerados"].map((nome) => <th key={nome} scope="col" className="px-4 py-3 font-medium">{nome}</th>)}<th scope="col" className="px-3 py-3"><span className="sr-only">Ações</span></th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {carregado && filtrados.map((g) => {
                   const Icone = ICONES[g.fonte];
                   return (
-                    <tr key={g.id} className="transition hover:bg-blue-50/30">
-                      <td className="px-4 py-4"><div className="flex items-center gap-3"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-acento"><Icone aria-hidden="true" className="h-6 w-6" /></div><div className="max-w-52"><p className="break-words font-semibold text-navy">{g.nome}</p><p className="mt-1 break-words text-xs leading-4 text-slate-500">{g.descricao}</p></div></div></td>
-                      <td className="px-4 py-4"><Badge tom={FONTE_TOM[g.fonte]}>{FONTE_ROTULO[g.fonte]}</Badge></td>
-                      <td className="px-4 py-4"><p className="max-w-40 break-words text-xs leading-5 text-slate-500">{g.criterio}</p></td>
-                      <td className="px-4 py-4"><div className="flex items-center gap-2 whitespace-nowrap"><span aria-hidden="true" className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${g.responsavel === "Carla Dias" ? "bg-violet-100 text-violet-700" : "bg-sky-100 text-sky-700"}`}>{g.responsavel ? g.responsavel.split(" ").map((parte) => parte[0]).slice(0, 2).join("") : "—"}</span><span className="text-xs text-slate-500">{g.responsavel || "Sem responsável"}</span></div></td>
-                      <td className="px-4 py-4"><Badge tom={g.ativo ? "verde" : "amarelo"}>{g.ativo ? "Ativo" : "Pausado"}</Badge></td>
-                      <td className="whitespace-nowrap px-4 py-4 text-xs text-slate-500">{g.ultimaOcorrencia}</td>
-                      <td className="px-4 py-4 font-semibold tabular-nums text-navy">{g.leads.toLocaleString("pt-BR")}</td>
-                      <td className="px-3 py-4 text-right"><MenuGatilho gatilho={g} onAcao={(acao) => executar(acao, g)} /></td>
+                    <tr key={g.id} className="transition hover:bg-blue-50/40">
+                      <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-acento"><Icone aria-hidden="true" className="h-5 w-5" /></div><div className="max-w-52"><p className="break-words font-semibold text-navy">{g.nome}</p><p className="mt-0.5 break-words text-xs leading-4 text-slate-500">{g.descricao}</p></div></div></td>
+                      <td className="px-4 py-3"><Badge tom={FONTE_TOM[g.fonte]}>{FONTE_ROTULO[g.fonte]}</Badge></td>
+                      <td className="px-4 py-3"><p className="max-w-40 break-words text-xs leading-5 text-slate-500">{g.criterio}</p></td>
+                      <td className="px-4 py-3"><div className="flex items-center gap-2 whitespace-nowrap"><span aria-hidden="true" className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${g.responsavel === "Carla Dias" ? "bg-violet-100 text-violet-700" : "bg-sky-100 text-sky-700"}`}>{g.responsavel ? g.responsavel.split(" ").map((parte) => parte[0]).slice(0, 2).join("") : "—"}</span><span className="text-xs text-slate-600">{g.responsavel || "Sem responsável"}</span></div></td>
+                      <td className="px-4 py-3"><Badge tom={g.ativo ? "verde" : "cinza"}>{g.ativo ? "Ativo" : "Pausado"}</Badge></td>
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-500">{g.ultimaOcorrencia}</td>
+                      <td className="px-4 py-3 font-semibold tabular-nums text-navy">{g.leads.toLocaleString("pt-BR")}</td>
+                      <td className="px-3 py-3 text-right"><MenuGatilho gatilho={g} onAcao={(acao) => executar(acao, g)} /></td>
                     </tr>
                   );
                 })}
@@ -165,47 +175,57 @@ export default function GatilhosPage() {
           <p className="mt-3 text-xs text-slate-500">{carregado ? `${filtrados.length} de ${gatilhos.length} gatilhos` : ""}</p>
         </section>
       ) : (
-      <div id="painel-eventos" role="tabpanel" aria-labelledby="aba-eventos"><Card>
-        <CardTitulo titulo="Eventos detectados" subtitulo="Filtre por tipo, prioridade e cidade." />
-        <div className="mb-4 flex flex-wrap gap-3">
-          <div className="flex flex-1 items-center gap-2 rounded-lg border border-slate-200 px-3 py-2">
-            <Search className="h-4 w-4 text-slate-400" />
-            <input placeholder="Buscar empresa..." className="flex-1 text-sm outline-none" />
-          </div>
-          {["Tipo", "Prioridade", "Cidade"].map((f) => (
-            <select key={f} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-              <option>{f}: todos</option>
-            </select>
-          ))}
+        <div id="painel-eventos" role="tabpanel" aria-labelledby="aba-eventos">
+          <Card>
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <label className="flex min-w-48 flex-1 items-center gap-2 rounded-lg border border-slate-200 px-3 py-2">
+                <Search aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400" />
+                <input aria-label="Buscar empresa" placeholder="Buscar empresa..." value={eventoBusca} onChange={(event) => setEventoBusca(event.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+              </label>
+              <select aria-label="Filtrar por tipo" value={eventoTipo} onChange={(event) => setEventoTipo(event.target.value)} className={campoFiltro}><option value="">Tipo: todos</option>{Object.entries(FONTE_ROTULO).map(([codigo, nome]) => <option key={codigo} value={codigo}>{nome}</option>)}</select>
+              <select aria-label="Filtrar por prioridade" value={eventoPrioridade} onChange={(event) => setEventoPrioridade(event.target.value)} className={campoFiltro}><option value="">Prioridade: todas</option>{Object.entries(PRIORIDADE_ROTULO).map(([codigo, nome]) => <option key={codigo} value={codigo}>{nome}</option>)}</select>
+            </div>
+            <div className="overflow-x-auto rounded-lg border border-slate-100">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th scope="col" className="px-4 py-3 font-medium">Empresa</th>
+                    <th scope="col" className="px-4 py-3 font-medium">Gatilhos</th>
+                    <th scope="col" className="px-4 py-3 font-medium">Detecção</th>
+                    <th scope="col" className="px-4 py-3 font-medium">Prioridade</th>
+                    <th scope="col" className="px-4 py-3"><span className="sr-only">Ações</span></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {empresasFiltradas.map((e) => (
+                    <tr key={e.empresa} className={`transition hover:bg-blue-50/40 ${e.empilhados >= 2 ? "bg-red-50/40" : ""}`}>
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-navy">{e.empresa}</p>
+                        <p className="text-xs text-slate-500">{e.cidade}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">{e.resumo}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {e.tipos.map((tipo) => {
+                            const Icone = ICONES[tipo as keyof typeof ICONES];
+                            return <Badge key={tipo} tom={FONTE_TOM[tipo]}><Icone aria-hidden="true" className="mr-1 h-3.5 w-3.5" />{FONTE_ROTULO[tipo]}</Badge>;
+                          })}
+                          {e.empilhados >= 2 && <Badge tom="vermelho">2 gatilhos</Badge>}
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 tabular-nums text-slate-600">{e.data}</td>
+                      <td className="px-4 py-3"><Badge tom={PRIORIDADE_TOM[e.prioridade]}>{PRIORIDADE_ROTULO[e.prioridade]}</Badge></td>
+                      <td className="px-4 py-3 text-right">
+                        <Botao variante="secundario" className="px-3"><Plus className="h-4 w-4" /> Fila</Botao>
+                      </td>
+                    </tr>
+                  ))}
+                  {empresasFiltradas.length === 0 && <tr><td colSpan={5} className="px-4 py-12 text-center text-sm text-slate-500">Nenhum evento encontrado com esses filtros.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </div>
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-slate-500">
-            <tr>
-              <th className="p-3">Empresa</th><th className="p-3">Gatilho</th><th className="p-3">Cidade/UF</th>
-              <th className="p-3">Detecção</th><th className="p-3">Prioridade</th><th className="p-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {EMPRESAS.map((e) => (
-              <tr key={e.empresa} className={e.empilhados >= 2 ? "bg-red-50/40" : ""}>
-                <td className="p-3">
-                  <p className="font-medium text-navy">{e.empresa}</p>
-                  <p className="text-xs text-slate-500">{e.resumo}</p>
-                </td>
-                <td className="p-3"><div className="flex flex-wrap gap-1">{e.tipos.map((tipo) => <Badge key={tipo} tom={FONTE_TOM[tipo]}>{FONTE_ROTULO[tipo]}</Badge>)}</div></td>
-                <td className="p-3 text-slate-600">{e.cidade}</td>
-                <td className="p-3 text-slate-600">{e.data}</td>
-                <td className="p-3">
-                  <Badge tom={PRIORIDADE_TOM[e.prioridade]}>{PRIORIDADE_ROTULO[e.prioridade]}{e.empilhados >= 2 && " · 2 gatilhos"}</Badge>
-                </td>
-                <td className="p-3 text-right">
-                  <Botao variante="secundario" className="px-3 py-1.5"><Plus className="h-4 w-4" /> Fila</Botao>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card></div>
       )}
       {dialogo && <DialogoGatilho key={dialogo.tipo === "novo" ? "novo" : `${dialogo.tipo}-${dialogo.gatilho.id}`} dialogo={dialogo} responsaveis={responsaveis} onFechar={() => setDialogo(null)} onSalvar={(gatilho) => {
         if (!gatilho.responsavel || gatilhos.some((g) => g.id !== gatilho.id && chaveResponsavel(g.responsavel) === chaveResponsavel(gatilho.responsavel))) {
