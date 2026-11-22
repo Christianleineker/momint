@@ -24,90 +24,94 @@ enum Papel {
 }
 
 model ContaCliente {
-  id          String    @id @default(cuid())
-  nome        String
-  emailContato String?
-  telefone    String?
-  documento   String?
-  criadoEm    DateTime  @default(now())
-  excluidoEm  DateTime?
-  sistemas    Cliente[]
+  id                   String                @id @default(cuid())
+  nome                 String
+  emailContato         String?
+  telefone             String?
+  documento            String?
+  criadoEm             DateTime              @default(now())
+  excluidoEm           DateTime?
+  sistemas             Cliente[]
   confirmacoesExclusao ConfirmacaoExclusao[]
 }
 
 model Cliente {
-  id                  String       @id @default(cuid())
+  id                  String        @id @default(cuid())
   contaClienteId      String?
   contaCliente        ContaCliente? @relation(fields: [contaClienteId], references: [id])
-  demonstrativo       Boolean      @default(false)
-  ativo               Boolean      @default(true)
+  demonstrativo       Boolean       @default(false)
+  ativo               Boolean       @default(true)
   nome                String
-  plano               String       @default("piloto")
-  modoOperacao        ModoOperacao @default(COPILOTO)
-  vozMarca            String       @default("consultivo")
+  plano               String        @default("piloto")
+  modoOperacao        ModoOperacao  @default(COPILOTO)
+  vozMarca            String        @default("consultivo")
   assinaturaEmail     String?
   calendarioProvedor  String?
-  calendarioConectado Boolean      @default(false)
-  condicoesParada     String[]     @default(["RESPONDEU", "OPT_OUT", "REUNIAO_MARCADA"])
-  taxaConversaoHist   Float        @default(0.3)
-  criadoEm            DateTime     @default(now())
+  calendarioConectado Boolean       @default(false)
+  condicoesParada     String[]      @default(["RESPONDEU", "OPT_OUT", "REUNIAO_MARCADA"])
+  taxaConversaoHist   Float         @default(0.3)
+  criadoEm            DateTime      @default(now())
 
-  usuarios Usuario[]
-  icp      PerfilICP?
-  leads    Lead[]
-  cadencia PassoCadencia[]
+  usuarios      Usuario[]
+  icp           PerfilICP?
+  leads         Lead[]
+  cadencia      PassoCadencia[]
+  regrasGatilho RegraGatilho[]
+  oferta        OfertaCliente?
 
   @@index([contaClienteId])
 }
 
 model Usuario {
-  id        String   @id @default(cuid())
-  clienteId String
-  nome      String
-  email     String   @unique
-  telefone  String?
-  senhaHash String
-  versaoSessao Int @default(0)
-  primeiroAcessoPendente Boolean @default(true)
-  oferta2faPendente Boolean @default(true)
-  doisFatoresEmail Boolean @default(false)
-  papel     Papel    @default(VENDEDOR)
-  ativo     Boolean  @default(true)
-  criadoEm  DateTime @default(now())
+  id                     String   @id @default(cuid())
+  clienteId              String
+  nome                   String
+  email                  String   @unique
+  telefone               String?
+  senhaHash              String
+  versaoSessao           Int      @default(0)
+  primeiroAcessoPendente Boolean  @default(true)
+  oferta2faPendente      Boolean  @default(true)
+  doisFatoresEmail       Boolean  @default(false)
+  papel                  Papel    @default(VENDEDOR)
+  ativo                  Boolean  @default(true)
+  criadoEm               DateTime @default(now())
 
-  cliente   Cliente   @relation(fields: [clienteId], references: [id])
-  leads     Lead[]
-  reunioes  Reuniao[]
-  aprovadas Mensagem[] @relation("aprovador")
-  recuperacaoSenha RecuperacaoSenha?
+  cliente              Cliente               @relation(fields: [clienteId], references: [id])
+  leads                Lead[]
+  reunioes             Reuniao[]
+  aprovadas            Mensagem[]            @relation("aprovador")
+  recuperacaoSenha     RecuperacaoSenha?
   confirmacoesExclusao ConfirmacaoExclusao[]
-  desafiosEmail DesafioEmail[]
-  historicoSenhas HistoricoSenha[]
+  desafiosEmail        DesafioEmail[]
+  historicoSenhas      HistoricoSenha[]
+  regrasGatilho        RegraGatilho[]
+  leiturasNotificacao  LeituraNotificacao[]
 
   @@index([clienteId])
 }
 
 model TentativaLogin {
-  chave String @id
-  tentativas Int @default(0)
+  chave        String    @id
+  tentativas   Int       @default(0)
   bloqueadoAte DateTime?
 }
 
 model HistoricoSenha {
   usuarioId String
   senhaHash String
-  criadoEm DateTime @default(now())
-  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  criadoEm  DateTime @default(now())
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@id([usuarioId, senhaHash])
 }
 
 model RecuperacaoSenha {
-  usuarioId String @id
-  tokenHash String @unique
-  expiraEm DateTime
-  usadaEm DateTime?
-  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuarioId String    @id
+  tokenHash String    @unique
+  expiraEm  DateTime
+  usadaEm   DateTime?
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 }
 
 enum FinalidadeCodigo {
@@ -117,17 +121,17 @@ enum FinalidadeCodigo {
 }
 
 model DesafioEmail {
-  id            String @id @default(cuid())
-  usuarioId     String
-  tokenHash     String @unique
-  codigoHash    String
-  finalidade    FinalidadeCodigo
-  versaoSessao  Int
-  emailDestino  String
-  tentativas    Int @default(0)
-  criadoEm      DateTime @default(now())
-  expiraEm      DateTime
-  usuario       Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  id           String           @id @default(cuid())
+  usuarioId    String
+  tokenHash    String           @unique
+  codigoHash   String
+  finalidade   FinalidadeCodigo
+  versaoSessao Int
+  emailDestino String
+  tentativas   Int              @default(0)
+  criadoEm     DateTime         @default(now())
+  expiraEm     DateTime
+  usuario      Usuario          @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@index([usuarioId, finalidade])
   @@index([expiraEm])
@@ -139,59 +143,59 @@ enum AutorSuporte {
 }
 
 model ConversaSuporte {
-  id                   String @id @default(cuid())
-  acessoHash           String @unique
-  nome                 String
-  email                String?
-  assunto              String @default("SUPORTE")
-  encerrada            Boolean @default(false)
-  pendentesAdmin       Int @default(0)
-  pendentesVisitante   Int @default(0)
-  criadoEm             DateTime @default(now())
-  ultimaMensagemEm     DateTime @default(now())
-  acessoExpiraEm       DateTime
-  mensagens            MensagemSuporte[]
+  id                 String            @id @default(cuid())
+  acessoHash         String            @unique
+  nome               String
+  email              String?
+  assunto            String            @default("SUPORTE")
+  encerrada          Boolean           @default(false)
+  pendentesAdmin     Int               @default(0)
+  pendentesVisitante Int               @default(0)
+  criadoEm           DateTime          @default(now())
+  ultimaMensagemEm   DateTime          @default(now())
+  acessoExpiraEm     DateTime
+  mensagens          MensagemSuporte[]
 
   @@index([ultimaMensagemEm])
 }
 
 model MensagemSuporte {
-  id              String @id @default(cuid())
-  conversaId      String
-  autor           AutorSuporte
-  nomeAutor       String
-  conteudo        String
-  idEnvio         String
-  criadoEm        DateTime @default(now())
-  conversa        ConversaSuporte @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+  id         String          @id @default(cuid())
+  conversaId String
+  autor      AutorSuporte
+  nomeAutor  String
+  conteudo   String
+  idEnvio    String
+  criadoEm   DateTime        @default(now())
+  conversa   ConversaSuporte @relation(fields: [conversaId], references: [id], onDelete: Cascade)
 
   @@unique([conversaId, idEnvio])
   @@index([conversaId, criadoEm, id])
 }
 
 model NotificacaoAdmin {
-  id        String   @id @default(cuid())
-  tipo      String
-  titulo    String
-  texto     String
-  criadoEm  DateTime @default(now())
-  lidaEm    DateTime?
+  id       String    @id @default(cuid())
+  tipo     String
+  titulo   String
+  texto    String
+  criadoEm DateTime  @default(now())
+  lidaEm   DateTime?
 
   @@index([criadoEm])
 }
 
 model ConfirmacaoExclusao {
-  id              String   @id @default(cuid())
-  tokenHash       String   @unique
-  usuarioId       String
-  contaClienteId  String
-  nomeConfirmado  String
-  versaoSessao    Int
-  prontoEm        DateTime
-  expiraEm        DateTime
-  usadaEm         DateTime?
-  usuario         Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  contaCliente    ContaCliente @relation(fields: [contaClienteId], references: [id], onDelete: Cascade)
+  id             String       @id @default(cuid())
+  tokenHash      String       @unique
+  usuarioId      String
+  contaClienteId String
+  nomeConfirmado String
+  versaoSessao   Int
+  prontoEm       DateTime
+  expiraEm       DateTime
+  usadaEm        DateTime?
+  usuario        Usuario      @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  contaCliente   ContaCliente @relation(fields: [contaClienteId], references: [id], onDelete: Cascade)
 
   @@index([contaClienteId])
 }
@@ -212,6 +216,27 @@ model PerfilICP {
   fontesAtivas    String[] @default(["CNO", "PNCP", "CNPJ_NOVO"])
 
   cliente Cliente @relation(fields: [clienteId], references: [id])
+}
+
+/// O que o cliente vende. É a base da 1ª abordagem e do briefing de reunião:
+/// sem a oferta cadastrada, o sistema não gera mensagens.
+model OfertaCliente {
+  clienteId    String   @id
+  /// Em poucas palavras, vai no assunto do e-mail (ex.: "impermeabilização").
+  produto      String
+  /// O que a empresa vende, em detalhe (produtos, serviços, garantias).
+  descricao    String
+  /// Como a empresa se apresenta na mensagem ("atendemos construtoras de ...").
+  proposta     String
+  /// Por que agir agora; completa a frase "Para executar a obra, ...".
+  beneficio    String
+  /// Quem compra ou decide a compra do lado do lead.
+  compradores  String
+  /// Foco técnico sugerido para a pauta da reunião.
+  pauta        String
+  atualizadoEm DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 }
 
 model PassoCadencia {
@@ -288,13 +313,21 @@ model EventoDeGatilho {
   @@index([empresaId])
 }
 
+/// De onde veio o contato: do quadro societário público (QSA da Receita) ou
+/// cadastrado à mão pelo time de vendas do cliente.
+enum OrigemContato {
+  RECEITA_FEDERAL
+  MANUAL
+}
+
 model Contato {
-  id        String  @id @default(cuid())
+  id        String        @id @default(cuid())
   empresaId String
   nome      String
   cargo     String?
   email     String?
   telefone  String?
+  origem    OrigemContato @default(MANUAL)
 
   empresa   EmpresaAlvo @relation(fields: [empresaId], references: [id])
   mensagens Mensagem[]
@@ -395,8 +428,8 @@ model Mensagem {
   criadoEm      DateTime       @default(now())
   enviadaEm     DateTime?
 
-  lead       Lead     @relation(fields: [leadId], references: [id])
-  contato    Contato? @relation(fields: [contatoId], references: [id])
+  lead        Lead     @relation(fields: [leadId], references: [id])
+  contato     Contato? @relation(fields: [contatoId], references: [id])
   aprovadaPor Usuario? @relation("aprovador", fields: [aprovadaPorId], references: [id])
 
   @@index([leadId])
@@ -441,4 +474,53 @@ model Desfecho {
   criadoEm  DateTime          @default(now())
 
   lead Lead @relation(fields: [leadId], references: [id])
+}
+
+/// Regra de monitoramento de gatilhos configurada pelo cliente (tela "Meus gatilhos").
+/// Cada responsável cuida de no máximo uma regra por cliente.
+model RegraGatilho {
+  id            String        @id @default(cuid())
+  clienteId     String
+  nome          String
+  descricao     String
+  fonte         CodigoGatilho
+  criterio      String
+  responsavelId String?
+  ativo         Boolean       @default(true)
+  criadoEm      DateTime      @default(now())
+  atualizadoEm  DateTime      @updatedAt
+
+  cliente     Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  responsavel Usuario? @relation(fields: [responsavelId], references: [id], onDelete: SetNull)
+
+  @@unique([clienteId, responsavelId])
+  @@index([clienteId])
+}
+
+/// Notificação do painel marcada como lida pelo usuário.
+/// A chave identifica a notificação de forma estável (ex.: "lead:<id>", "aprovacoes:<n>").
+model LeituraNotificacao {
+  usuarioId String
+  chave     String
+  lidaEm    DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@id([usuarioId, chave])
+}
+
+/// Catálogo de atividades econômicas (CNAE) oferecido na segmentação. Dado de referência.
+model Cnae {
+  codigo    String @id
+  descricao String
+}
+
+/// Município com o centro aproximado, usado para medir a distância até a cidade-base. Dado de referência.
+model Municipio {
+  nome String // normalizado: maiúsculas e sem acento (ex.: "SAO JOSE DOS PINHAIS")
+  uf   String
+  lat  Float
+  lng  Float
+
+  @@id([nome, uf])
 }

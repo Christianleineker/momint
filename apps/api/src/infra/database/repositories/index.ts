@@ -11,6 +11,10 @@ import { SupressaoRepository } from "./supressao.repository.js";
 import { UsuarioRepository } from "./usuario.repository.js";
 import { RecuperacaoSenhaRepository } from "./recuperacao-senha.repository.js";
 import { TentativaLoginRepository } from "./tentativa-login.repository.js";
+import { RegraGatilhoRepository } from "./regra-gatilho.repository.js";
+import { LeituraNotificacaoRepository } from "./leitura-notificacao.repository.js";
+import { CnaeRepository } from "./cnae.repository.js";
+import { OfertaRepository } from "./oferta.repository.js";
 
 /** Conjunto de repositórios ligados a um mesmo cliente de banco (ou transação). */
 export function criarRepositorios(db: DbClient) {
@@ -27,6 +31,10 @@ export function criarRepositorios(db: DbClient) {
     leads: new LeadRepository(db),
     mensagens: new MensagemRepository(db),
     reunioes: new ReuniaoRepository(db),
+    regrasGatilho: new RegraGatilhoRepository(db),
+    leiturasNotificacao: new LeituraNotificacaoRepository(db),
+    cnaes: new CnaeRepository(db),
+    ofertas: new OfertaRepository(db),
   };
 }
 

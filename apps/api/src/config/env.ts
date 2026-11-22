@@ -15,8 +15,6 @@ const schema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().email().optional(),
-  /** mock = fixtures locais; live = APIs públicas reais */
-  DATA_MODE: z.enum(["mock", "live"]).default("mock"),
   /** Data fixa (YYYY-MM-DD) para demos e testes determinísticos */
   MOMINT_HOJE: z
     .string()

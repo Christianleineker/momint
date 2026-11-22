@@ -4,6 +4,9 @@ import type { DbClient } from "../prisma.js";
 
 export type DadosEmpresa = Omit<Prisma.EmpresaAlvoCreateInput, "cnpj" | "eventos" | "contatos" | "leads">;
 
+/** MANUAL vem depois de RECEITA_FEDERAL no enum: ordem decrescente põe o contato do time primeiro. */
+const PREFERENCIA_DE_CONTATO: Prisma.ContatoOrderByWithRelationInput[] = [{ origem: "desc" }, { id: "asc" }];
+
 export class EmpresaRepository {
   constructor(private readonly db: DbClient) {}
 
@@ -19,12 +22,13 @@ export class EmpresaRepository {
     return this.db.empresaAlvo.findMany({ include: { eventos: { include: { tipo: true } } } });
   }
 
+  /** Contatos cadastrados pelo time vêm antes dos tirados do QSA público. */
   listarContatos(empresaId: string) {
-    return this.db.contato.findMany({ where: { empresaId }, orderBy: { id: "asc" } });
+    return this.db.contato.findMany({ where: { empresaId }, orderBy: PREFERENCIA_DE_CONTATO });
   }
 
   primeiroContato(empresaId: string) {
-    return this.db.contato.findFirst({ where: { empresaId }, orderBy: { id: "asc" } });
+    return this.db.contato.findFirst({ where: { empresaId }, orderBy: PREFERENCIA_DE_CONTATO });
   }
 
   /** Contato visível ao cliente: só se o cliente tiver lead na empresa dele. */

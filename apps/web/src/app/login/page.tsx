@@ -1,14 +1,16 @@
 "use client";
+import { alerta } from "@/lib/alertas";
+import { reabrirAvisoSeguranca } from "@/lib/aviso-seguranca";
 
 import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, BarChart3, ChartNoAxesColumnIncreasing, LockKeyhole, Mail, MessageCircle, Server, ShieldCheck, Users, Zap } from "lucide-react";
 import { Logo } from "@/components/ui";
 import { CampoSenha } from "@/components/CampoSenha";
-import { enviar } from "@/lib/api";
+import { enviar, requisitar } from "@/lib/api";
 import { abrirChatSuporte } from "@/components/ChatSuporte";
 
 const DESTAQUES = [
@@ -23,20 +25,39 @@ const INFORMACOES = [
   { icone: Server, titulo: "Alta disponibilidade", texto: "99,9% de uptime para o seu negócio.", cor: "bg-violet-100 text-violet-600" },
 ];
 
+// "Lembrar de mim" guarda apenas o e-mail para preencher o próximo login. A senha nunca é salva.
+const CHAVE_EMAIL = "momint:email-lembrado";
+
+function lerEmailLembrado() {
+  try { return localStorage.getItem(CHAVE_EMAIL) ?? ""; } catch { return ""; }
+}
+
+function guardarEmail(lembrar: boolean, email: string) {
+  try {
+    if (lembrar && email) localStorage.setItem(CHAVE_EMAIL, email);
+    else localStorage.removeItem(CHAVE_EMAIL);
+  } catch { /* navegador sem armazenamento local: segue sem lembrar */ }
+}
+
 export default function LoginPage() {
   const router = useRouter();
-  const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [pendente, setPendente] = useState<{ emailMascarado: string } | null>(null);
   const [reenvio, setReenvio] = useState(0);
   const [bloqueadoAte, setBloqueadoAte] = useState(0);
   const [espera, setEspera] = useState(0);
+  const [lembrar, setLembrar] = useState(false);
+  const campoEmail = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const salvo = lerEmailLembrado();
+    if (salvo && campoEmail.current) { campoEmail.current.value = salvo; setLembrar(true); }
+  }, []);
   useEffect(() => {
     if (!bloqueadoAte) return;
     const atualizar = () => {
       const restante = Math.max(0, Math.ceil((bloqueadoAte - Date.now()) / 1000));
       setEspera(restante);
-      if (!restante) { setBloqueadoAte(0); setErro(""); }
+      if (!restante) { setBloqueadoAte(0); }
     };
     atualizar();
     const timer = window.setInterval(atualizar, 250);
@@ -48,7 +69,6 @@ export default function LoginPage() {
   async function entrar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (espera > 0) return;
-    setErro("");
     setCarregando(true);
 
     const dados = new FormData(event.currentTarget);
@@ -58,9 +78,9 @@ export default function LoginPage() {
     try {
       if (pendente) {
         const perfil = await enviar<{ papel: string }>("/api/auth/login/codigo", "POST", { codigo: dados.get("codigo") });
-        router.push(perfil.papel === "ADMIN" ? "/acessos" : "/dashboard"); router.refresh(); return;
+        reabrirAvisoSeguranca(); router.push(perfil.papel === "ADMIN" ? "/acessos" : "/dashboard"); router.refresh(); return;
       }
-      const resposta = await fetch("/api/auth/login", {
+      const resposta = await requisitar("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, senha }),
@@ -72,16 +92,17 @@ export default function LoginPage() {
           setEspera(corpo.tentarNovamenteEm);
           setBloqueadoAte(Date.now() + corpo.tentarNovamenteEm * 1000);
         }
-        setErro(corpo?.erro ?? "Não foi possível entrar. Confira seus dados e tente novamente.");
+        alerta.erro(corpo?.tentarNovamenteEm ? `Você errou 3 vezes seguidas. Aguarde ${corpo.tentarNovamenteEm} segundos e tente novamente.` : corpo?.erro ?? "Não foi possível entrar. Confira seus dados e tente novamente.");
         return;
       }
 
       const perfil = await resposta.json() as { papel: string; requerCodigo?: boolean; emailMascarado: string };
+      guardarEmail(lembrar, email);
       if (perfil.requerCodigo) { setPendente(perfil); setReenvio(60); return; }
-      router.push(perfil.papel === "ADMIN" ? "/acessos" : "/dashboard");
+      reabrirAvisoSeguranca(); router.push(perfil.papel === "ADMIN" ? "/acessos" : "/dashboard");
       router.refresh();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Não foi possível conectar ao servidor. Tente novamente.");
+      alerta.falha(e, "Não foi possível conectar ao servidor. Tente novamente.");
     } finally {
       setCarregando(false);
     }
@@ -142,17 +163,16 @@ export default function LoginPage() {
             <span className="text-sm font-medium">E-mail</span>
             <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 transition focus-within:border-acento focus-within:ring-2 focus-within:ring-blue-100">
               <Mail aria-hidden="true" className="h-4 w-4 text-slate-400" />
-              <input name="email" type="email" placeholder="seu@email.com" autoComplete="email" required className="min-w-0 flex-1 outline-none" />
+              <input ref={campoEmail} name="email" type="email" placeholder="seu@email.com" autoComplete="email" required className="min-w-0 flex-1 outline-none" />
             </div>
           </label>
           <CampoSenha />
           </>}
-          {erro && (
-            <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-              {espera > 0 ? `Você errou 3 vezes seguidas. Aguarde ${espera} segundos e tente novamente.` : erro}
-            </p>
-          )}
-          {!pendente && <div className="flex justify-end">
+          {!pendente && <div className="flex flex-wrap items-center justify-between gap-3">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
+              <input type="checkbox" checked={lembrar} onChange={(e) => { setLembrar(e.target.checked); if (!e.target.checked) guardarEmail(false, ""); }} className="h-4 w-4 accent-blue-600" />
+              Lembrar de mim
+            </label>
             <Link href="/recuperar-senha" className="rounded text-sm font-medium text-acento transition hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-acento">
               Esqueci a senha?
             </Link>
@@ -164,7 +184,7 @@ export default function LoginPage() {
           >
             {espera > 0 ? `Tentar novamente em ${espera}s` : carregando ? "Aguarde..." : pendente ? "Confirmar código e entrar" : "Entrar"} <ArrowRight className="h-4 w-4" />
           </button>
-          {pendente && <div className="flex flex-wrap justify-between gap-3 text-xs"><button type="button" disabled={carregando || reenvio > 0} className="text-acento disabled:text-slate-400" onClick={async () => { setCarregando(true); setErro(""); try { await enviar("/api/auth/login/reenviar", "POST"); setReenvio(60); } catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível reenviar."); } finally { setCarregando(false); } }}>{reenvio ? `Reenviar em ${reenvio}s` : "Reenviar código"}</button><button type="button" disabled={carregando} className="text-slate-500" onClick={async () => { await enviar("/api/auth/logout", "POST"); setPendente(null); setErro(""); }}>Usar outra conta</button></div>}
+          {pendente && <div className="flex flex-wrap justify-between gap-3 text-xs"><button type="button" disabled={carregando || reenvio > 0} className="text-acento disabled:text-slate-400" onClick={async () => { setCarregando(true); try { await enviar("/api/auth/login/reenviar", "POST"); setReenvio(60); alerta.sucesso("Enviamos um novo código para o seu e-mail."); } catch (e) { alerta.falha(e, "Não foi possível reenviar."); } finally { setCarregando(false); } }}>{reenvio ? `Reenviar em ${reenvio}s` : "Reenviar código"}</button><button type="button" disabled={carregando} className="text-slate-500" onClick={async () => { await enviar("/api/auth/logout", "POST"); setPendente(null); }}>Usar outra conta</button></div>}
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-slate-200" />
             <span className="text-xs font-medium uppercase text-slate-400">ou</span>

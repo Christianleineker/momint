@@ -6,7 +6,8 @@ import { planejarLead } from "../../src/domain/lead/planejamento.js";
 import { podeAgendar, podeTransicionar } from "../../src/domain/lead/estados.js";
 import { comporPrimeiraAbordagem } from "../../src/domain/mensagem/compositor.js";
 import { validarPrimeiraAbordagem, type ContextoGatilho } from "../../src/domain/mensagem/referencias.js";
-import { licitacoesFixture, obrasFixture } from "../../src/infra/fontes-publicas/fixtures/index.js";
+import { licitacoesFixture, obrasFixture } from "../fixtures/fontes-publicas/fixtures/index.js";
+import { OFERTA_TESTE } from "../fixtures/oferta.js";
 
 const HOJE = new Date("2026-09-30T12:00:00Z");
 const icp: PerfilIcp = {
@@ -127,7 +128,7 @@ describe("Regra 5 — 1ª abordagem precisa citar o gatilho", () => {
 
   it.each([["CNO", cno], ["PNCP", pncp], ["CNPJ_NOVO", novo]])("mensagem gerada para %s é válida", (_n, ev) => {
     for (const canal of ["EMAIL", "WHATSAPP"] as const) {
-      const m = comporPrimeiraAbordagem({ evento: ev, empresa: { nome: "X" }, contato: { nome: "Ana Souza" }, remetente: { nome: "Rafael", empresa: "ImperSul" }, canal, voz: "consultivo" });
+      const m = comporPrimeiraAbordagem({ evento: ev, empresa: { nome: "X" }, contato: { nome: "Ana Souza" }, remetente: { nome: "Rafael", empresa: "ImperSul" }, oferta: OFERTA_TESTE, canal, voz: "consultivo" });
       expect(validarPrimeiraAbordagem(m.conteudo, ev).valida).toBe(true);
     }
   });

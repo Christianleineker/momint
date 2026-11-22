@@ -7,10 +7,13 @@ export function Modal({ titulo, children, ocupado, fechar }: { titulo: string; c
   const id = useId();
   useEffect(() => {
     const dialogo = ref.current;
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    // Trava a rolagem na raiz (html), não no body: overflow no body o transforma
+    // em contêiner de rolagem e desloca o menu lateral fixo (sticky) para fora da tela.
+    const raiz = document.documentElement;
+    const overflow = raiz.style.overflow;
+    raiz.style.overflow = "hidden";
     dialogo?.showModal();
-    return () => { dialogo?.close(); document.body.style.overflow = overflow; };
+    return () => { dialogo?.close(); raiz.style.overflow = overflow; };
   }, []);
   return <dialog ref={ref} aria-labelledby={id} onCancel={e => { e.preventDefault(); if (!ocupado) fechar(); }} className="m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-xl overflow-y-auto rounded-2xl border-0 bg-white p-6 text-slate-800 shadow-xl backdrop:bg-navy/45"><div className="mb-5 flex items-center justify-between gap-3"><h2 id={id} className="text-xl font-bold text-navy">{titulo}</h2><button type="button" aria-label="Fechar" disabled={ocupado} onClick={fechar} className="rounded-lg p-2 hover:bg-slate-100 disabled:opacity-50"><X className="h-5 w-5" /></button></div>{children}</dialog>;
 }

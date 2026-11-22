@@ -1,4 +1,5 @@
 "use client";
+import { alerta } from "@/lib/alertas";
 
 import type { KeyboardEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -7,6 +8,7 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { Bell, Check, CheckCheck, ClipboardCheck, LogOut, RefreshCw, UserPen, UserRound, Users, X } from "lucide-react";
 import { FONTE_ROTULO } from "@/components/ui";
+import { enviar, requisitar } from "@/lib/api";
 
 type Usuario = { id: string; nome: string; email: string };
 type DadosDashboard = {
@@ -38,26 +40,15 @@ export function DashboardAcoes() {
   const painel = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState<Menu>(null);
   const [filtro, setFiltro] = useState("recentes");
-  const [leitura, setLeitura] = useState<{ usuarioId: string; ids: string[] } | null>(null);
-  const [erroLeitura, setErroLeitura] = useState("");
-  const [erroSaida, setErroSaida] = useState("");
   const [saindo, setSaindo] = useState(false);
   const { data: usuario, error: erroUsuario, mutate: atualizarUsuario } = useSWR<Usuario, ErroHttp>("/api/auth/me", carregar, { shouldRetryOnError: false });
   const { data: dados, error: erroDados, isLoading, mutate: atualizarDados } = useSWR<DadosDashboard>(usuario ? ["notificacoes-dashboard", usuario.id] : null, () => carregar<DadosDashboard>("/api/dashboard"), { shouldRetryOnError: false });
+  // Notificações lidas ficam no banco, por usuário (GET/POST /api/notificacoes/lidas).
+  const { data: leitura, isLoading: carregandoLeitura, mutate: atualizarLeitura } = useSWR<{ chaves: string[] }>(usuario ? ["notificacoes-lidas", usuario.id] : null, () => carregar<{ chaves: string[] }>("/api/notificacoes/lidas"), { shouldRetryOnError: false });
 
   useEffect(() => {
     if (erroUsuario?.status === 401) router.replace("/login");
   }, [erroUsuario, router]);
-
-  useEffect(() => {
-    if (!usuario) return;
-    let ids: string[] = [];
-    try {
-      const salvas: unknown = JSON.parse(localStorage.getItem(`momint:notificacoes-lidas:${usuario.id}`) ?? "[]");
-      if (Array.isArray(salvas) && salvas.every((id) => typeof id === "string")) ids = salvas;
-    } catch { setErroLeitura("Não foi possível recuperar suas notificações lidas."); }
-    setLeitura({ usuarioId: usuario.id, ids });
-  }, [usuario?.id]);
 
   useEffect(() => {
     if (!menu) return;
@@ -89,31 +80,33 @@ export function DashboardAcoes() {
     return recentes;
   }, [dados]);
 
-  const lidas = leitura?.usuarioId === usuario?.id ? leitura?.ids ?? [] : [];
+  const lidas = leitura?.chaves ?? [];
   const naoLidas = notificacoes.filter((n) => !lidas.includes(n.id));
   const exibidas = filtro === "nao-lidas" ? naoLidas : notificacoes;
   const iniciais = usuario?.nome.trim().split(/\s+/).map((parte) => parte[0]).filter(Boolean).slice(0, 2).join("").toLocaleUpperCase("pt-BR");
-  const carregando = (!usuario && !erroUsuario) || isLoading || (!!usuario && leitura?.usuarioId !== usuario.id);
+  const carregando = (!usuario && !erroUsuario) || isLoading || carregandoLeitura;
 
-  function marcarLidas(ids: string[]) {
-    if (!usuario) return;
-    const novas = Array.from(new Set([...lidas, ...ids])).slice(-500);
-    setLeitura({ usuarioId: usuario.id, ids: novas });
+  async function marcarLidas(ids: string[]) {
+    if (!usuario || !ids.length) return;
+    const anteriores = leitura;
+    // Atualiza a tela na hora e grava no banco; se falhar, volta ao estado anterior.
+    await atualizarLeitura({ chaves: Array.from(new Set([...lidas, ...ids])) }, { revalidate: false });
     try {
-      localStorage.setItem(`momint:notificacoes-lidas:${usuario.id}`, JSON.stringify(novas));
-      setErroLeitura("");
-    } catch { setErroLeitura("A leitura foi atualizada nesta sessão, mas não pôde ser salva no navegador."); }
+      await enviar("/api/notificacoes/lidas", "POST", { chaves: ids });
+    } catch (e) {
+      await atualizarLeitura(anteriores, { revalidate: false });
+      alerta.falha(e, "Não foi possível marcar a notificação como lida.");
+    }
   }
 
   async function sair() {
     setSaindo(true);
-    setErroSaida("");
     try {
-      const resposta = await fetch("/api/auth/logout", { method: "POST" });
+      const resposta = await requisitar("/api/auth/logout", { method: "POST" });
       if (!resposta.ok) throw new Error();
       window.location.href = "/login";
     } catch {
-      setErroSaida("Não foi possível sair. Tente novamente.");
+      alerta.erro("Não foi possível sair. Tente novamente.");
       setSaindo(false);
     }
   }
@@ -150,7 +143,6 @@ export function DashboardAcoes() {
             <Link href="/configuracoes?aba=perfil" role="menuitem" onClick={() => setMenu(null)} className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm text-slate-700 outline-none hover:bg-blue-50 focus:bg-blue-50"><UserPen aria-hidden="true" className="h-4 w-4" />Editar perfil</Link>
             <button type="button" role="menuitem" disabled={saindo} onClick={sair} className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-red-600 outline-none hover:bg-red-50 focus:bg-red-50 disabled:opacity-50"><LogOut aria-hidden="true" className="h-4 w-4" />{saindo ? "Saindo..." : "Sair"}</button>
           </div>
-          {erroSaida && <p role="alert" className="px-3 py-2 text-xs text-red-600">{erroSaida}</p>}
         </div>
       )}
 
@@ -195,7 +187,6 @@ export function DashboardAcoes() {
               </ul>}
           </div>
           {!carregando && !erroDados && !erroUsuario && naoLidas.length > 0 && <button type="button" onClick={() => marcarLidas(naoLidas.map((n) => n.id))} className="flex shrink-0 items-center justify-center gap-2 border-t border-slate-100 px-4 py-3 text-xs font-medium text-acento hover:bg-blue-50"><CheckCheck aria-hidden="true" className="h-4 w-4" />Marcar todas como lidas</button>}
-          {erroLeitura && <p role="status" className="border-t border-slate-100 px-4 py-2 text-xs text-amber-700">{erroLeitura}</p>}
         </div>
       )}
     </div>

@@ -4,15 +4,8 @@ import type { Geocodificador } from "../../ports/geocodificador.js";
 import { EntradaInvalida, NaoEncontrado } from "../../shared/erros.js";
 import type { RadarService } from "../radar/radar.service.js";
 
-/** Catálogo de CNAEs do nicho (chips da tela de ICP). */
-export const CATALOGO_CNAE = [
-  { codigo: "4120400", descricao: "Construção de edifícios" },
-  { codigo: "4110700", descricao: "Incorporação de empreendimentos imobiliários" },
-  { codigo: "4299599", descricao: "Outras obras de engenharia civil" },
-  { codigo: "4211101", descricao: "Construção de rodovias e ferrovias" },
-  { codigo: "4330499", descricao: "Outros serviços de acabamento em construção" },
-  { codigo: "4391600", descricao: "Obras de fundações" },
-];
+/** O radar cobre o Paraná (fontes filtradas por UF): a cidade-base é uma cidade do estado. */
+const UF_ATENDIDA = "PR";
 
 export interface AtualizacaoIcp {
   cnaes: string[];
@@ -34,13 +27,14 @@ export class IcpService {
   async obter(clienteId: string) {
     const icp = await this.repos.icp.buscarDoCliente(clienteId);
     if (!icp) throw new NaoEncontrado("Perfil de ICP não configurado");
-    return { icp, catalogoCnae: CATALOGO_CNAE, cidades: this.geo.municipiosConhecidos() };
+    const [catalogoCnae, cidades] = await Promise.all([this.repos.cnaes.listar(), this.geo.municipios(UF_ATENDIDA)]);
+    return { icp, catalogoCnae, cidades };
   }
 
   async salvar(clienteId: string, dados: AtualizacaoIcp) {
-    const coord = this.geo.coordenadas(dados.cidadeBase);
+    const coord = await this.geo.coordenadas(dados.cidadeBase, UF_ATENDIDA);
     if (!coord) throw new EntradaInvalida("Cidade-base desconhecida");
-    await this.repos.icp.atualizarDoCliente(clienteId, { ...dados, ufBase: "PR", latBase: coord[0], lngBase: coord[1] });
+    await this.repos.icp.atualizarDoCliente(clienteId, { ...dados, ufBase: UF_ATENDIDA, latBase: coord[0], lngBase: coord[1] });
     return this.radar.processarCliente(clienteId);
   }
 }

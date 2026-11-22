@@ -4,10 +4,10 @@ import bcrypt from "bcryptjs";
 import { randomUUID, createHash } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import type { InjectOptions } from "light-my-request";
-import { seed, SENHA_DEMO } from "../../prisma/seed.js";
+import { seed, SENHA_DEMO } from "../fixtures/cenario.js";
 import { criarApp } from "../../src/app.js";
 import { criarContainer, criarRelogio } from "../../src/container.js";
-import { fontesMock } from "../../src/infra/fontes-publicas/mock.js";
+import { fontesMock } from "../fixtures/fontes-publicas/mock.js";
 
 const db = new PrismaClient();
 let app: FastifyInstance;

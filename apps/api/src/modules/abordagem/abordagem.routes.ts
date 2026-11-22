@@ -10,7 +10,7 @@ export const abordagemRoutes =
     app.post("/leads/:id/abordar", async (req) => {
       const { id } = idParams.parse(req.params);
       const { canal } = abordarBody.parse(req.body ?? {});
-      return abordagem.abordar(req.user.clienteId, id, canal);
+      return abordagem.abordar(req.user.clienteId, id, canal, req.user.sub);
     });
 
     app.post("/leads/:id/respostas", async (req) => {

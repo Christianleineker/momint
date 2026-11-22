@@ -13,6 +13,14 @@ import type { SupressaoService } from "../contatos/supressao.service.js";
 
 const ABORDAVEIS: EstagioLead[] = ["APTO", "RECICLADO"];
 
+/** Canal pedido, se o contato tiver o endereço dele; senão, o outro canal que ele tiver. */
+function canalDoContato(contato: { email: string | null; telefone: string | null }, pedido: Canal): Canal | null {
+  const disponivel = (c: Canal) => Boolean(c === "EMAIL" ? contato.email : contato.telefone);
+  if (disponivel(pedido)) return pedido;
+  const outro: Canal = pedido === "EMAIL" ? "WHATSAPP" : "EMAIL";
+  return disponivel(outro) ? outro : null;
+}
+
 export interface EdicaoMensagem {
   assunto?: string | null;
   conteudo: string;
@@ -26,25 +34,36 @@ export class AbordagemService {
     private readonly relogio: Relogio,
   ) {}
 
-  /** Gera a 1ª abordagem. Copiloto → rascunho na fila (regra 4); Autopilot → envio direto. */
-  async abordar(clienteId: string, leadId: string, canal: Canal = "EMAIL") {
+  /** Gera a 1ª abordagem. Copiloto → rascunho na fila (regra 4); Autopilot → envio direto.
+   *  Lead sem responsável passa a ser de quem gerou a abordagem, que assina a mensagem. */
+  async abordar(clienteId: string, leadId: string, canal: Canal = "EMAIL", autorId?: string) {
     const lead = await this.repos.leads.buscarParaAbordagem(clienteId, leadId);
     if (!lead) throw new NaoEncontrado("Lead não encontrado");
     if (!ABORDAVEIS.includes(lead.estagio)) throw new Conflito("Só é possível abordar leads aptos ou reciclados");
+
+    // O texto comercial vem do que o cliente vende: sem oferta, não há mensagem.
+    const oferta = await this.repos.ofertas.buscarDoCliente(clienteId);
+    if (!oferta) throw new RegraDeNegocio("Cadastre o que sua empresa vende em Filtro e Segmentação para gerar a abordagem");
 
     const contato = await this.supressao.contatoAbordavel(lead.empresaId);
     if (!contato) {
       await this.repos.leads.atualizar(lead.id, { estagio: "SEM_CONTATO" });
       throw new Conflito("Nenhum contato abordável (sem contato ou todos em opt-out)");
     }
+    const canalUsado = canalDoContato(contato, canal);
+    if (!canalUsado) throw new Conflito("O contato não tem e-mail nem telefone para a abordagem");
+
+    const autor = !lead.dono && autorId ? await this.repos.usuarios.buscarDoCliente(clienteId, autorId) : null;
+    const responsavel = lead.dono ?? autor;
 
     const gatilho = contextoDoGatilho(lead.evento);
     const gerada = comporPrimeiraAbordagem({
       evento: gatilho,
       empresa: { nome: nomeEmpresa(lead.empresa) },
       contato,
-      remetente: { nome: lead.dono?.nome ?? lead.cliente.nome, empresa: lead.cliente.nome },
-      canal,
+      remetente: { nome: responsavel?.nome ?? lead.cliente.nome, empresa: lead.cliente.nome },
+      oferta,
+      canal: canalUsado,
       voz: lead.cliente.vozMarca as VozMarca,
     });
     const validacao = validarPrimeiraAbordagem(gerada.conteudo, gatilho);
@@ -55,7 +74,7 @@ export class AbordagemService {
       const mensagem = await r.mensagens.criar({
         leadId: lead.id,
         contatoId: contato.id,
-        canal,
+        canal: canalUsado,
         direcao: "SAIDA",
         passo: 1,
         geradaPorIA: true,
@@ -64,7 +83,7 @@ export class AbordagemService {
         conteudo: gerada.conteudo,
         enviadaEm: autopilot ? new Date() : null,
       });
-      await r.leads.atualizar(lead.id, { estagio: autopilot ? "EM_CADENCIA" : "AGUARDANDO_APROVACAO" });
+      await r.leads.atualizar(lead.id, { estagio: autopilot ? "EM_CADENCIA" : "AGUARDANDO_APROVACAO", ...(autor ? { donoId: autor.id } : {}) });
       return mensagem;
     });
   }

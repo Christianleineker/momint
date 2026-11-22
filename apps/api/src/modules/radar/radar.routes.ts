@@ -20,6 +20,6 @@ export const radarRoutes =
     app.post("/radar/:eventoId/fila", async (req) => {
       const { eventoId } = eventoParams.parse(req.params);
       const { canal } = filaBody.parse(req.body ?? {});
-      return radar.adicionarAFila(req.user.clienteId, eventoId, canal);
+      return radar.adicionarAFila(req.user.clienteId, eventoId, canal, req.user.sub);
     });
   };

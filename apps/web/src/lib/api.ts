@@ -1,4 +1,5 @@
 // Funções compartilhadas para falar com a API (o Next repassa /api/* para o Fastify).
+import { carregamento } from "@/lib/carregamento";
 
 export const CHAVE_FILA = "/api/abordagens/fila";
 
@@ -17,17 +18,23 @@ async function tratar<T>(resposta: Response): Promise<T> {
   return dados as T;
 }
 
-/** GET que devolve JSON. Serve como "fetcher" do SWR. */
+/** GET que devolve JSON. Serve como "fetcher" do SWR (o spinner da primeira carga
+ *  é ligado pelo ProvedorDados, para não piscar nas atualizações em segundo plano). */
 export async function lerJson<T>(url: string): Promise<T> {
   return tratar<T>(await fetch(url, { cache: "no-store" }));
 }
 
-/** POST/PUT/PATCH. Só envia Content-Type quando há corpo (o Fastify recusa JSON vazio). */
+/** `fetch` que liga o spinner global até a resposta chegar. Use em ações do usuário. */
+export function requisitar(url: string, init?: RequestInit): Promise<Response> {
+  return carregamento.durante(fetch(url, init));
+}
+
+/** POST/PUT/PATCH/DELETE com spinner. Só envia Content-Type quando há corpo (o Fastify recusa JSON vazio). */
 export async function enviar<T = unknown>(url: string, metodo: "POST" | "PUT" | "PATCH" | "DELETE", corpo?: unknown): Promise<T> {
   const init: RequestInit = { method: metodo };
   if (corpo !== undefined) {
     init.headers = { "Content-Type": "application/json" };
     init.body = JSON.stringify(corpo);
   }
-  return tratar<T>(await fetch(url, init));
+  return tratar<T>(await requisitar(url, init));
 }

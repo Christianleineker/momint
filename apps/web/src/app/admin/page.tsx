@@ -1,4 +1,5 @@
 "use client";
+import { alerta } from "@/lib/alertas";
 import { useEffect, useState, type FormEvent } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { Building2, ChevronDown, Clock3, Monitor, Pencil, Plus, Search, ShieldCheck, Trash2, Users } from "lucide-react";
@@ -22,8 +23,6 @@ export default function AdminPage() {
   const { mutate: atualizar } = useSWRConfig();
   const [busca, setBusca] = useState("");
   const [dialogo, setDialogo] = useState<Dialogo | null>(null);
-  const [erro, setErro] = useState("");
-  const [sucesso, setSucesso] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [confirmacao, setConfirmacao] = useState("");
   const [exclusao, setExclusao] = useState<{ token: string; liberarEm: number } | null>(null);
@@ -37,18 +36,18 @@ export default function AdminPage() {
     return () => window.clearInterval(timer);
   }, [exclusao]);
 
-  function abrir(d: Dialogo) { setDialogo(d); setErro(""); setSucesso(""); setConfirmacao(""); setExclusao(null); }
+  function abrir(d: Dialogo) { setDialogo(d); setConfirmacao(""); setExclusao(null); }
   function fechar() {
     if (salvando) return;
     if (dialogo?.tipo === "excluir" && exclusao) void enviar(`/api/admin/clientes/${dialogo.cliente.id}/confirmar-exclusao`, "DELETE").catch(() => null);
-    setDialogo(null); setExclusao(null); setErro("");
+    setDialogo(null); setExclusao(null);
   }
   async function atualizarDados() { await Promise.all([mutate(), atualizar(CHAVE_NOTIFICACOES_ADMIN)]); }
 
   async function salvar(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); if (!dialogo || salvando) return;
     const f = new FormData(e.currentTarget);
-    setSalvando(true); setErro("");
+    setSalvando(true);
     try {
       if (dialogo.tipo === "excluir") {
         if (!exclusao) {
@@ -71,16 +70,16 @@ export default function AdminPage() {
         if (dialogo.tipo === "cliente") await enviar("/api/admin/clientes", "POST", { nome: f.get("cliente"), documento: f.get("documento") || undefined, sistema });
         else await enviar(`/api/admin/clientes/${dialogo.cliente.id}/sistemas`, "POST", sistema);
       }
-      setSucesso(dialogo.tipo === "excluir" ? "Cliente excluído. Todos os acessos foram encerrados." : dialogo.tipo.startsWith("editar-") ? "Dados básicos atualizados. Alterações de e-mail ou senha encerram os acessos anteriores do usuário." : "Cadastro criado. O responsável já pode entrar com o e-mail e a senha definidos.");
+      alerta.sucesso(dialogo.tipo === "excluir" ? "Cliente excluído. Todos os acessos foram encerrados." : dialogo.tipo.startsWith("editar-") ? "Dados básicos atualizados. Alterações de e-mail ou senha encerram os acessos anteriores do usuário." : "Cadastro criado. O responsável já pode entrar com o e-mail e a senha definidos.");
       setDialogo(null); setExclusao(null); await atualizarDados();
-    } catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível salvar."); }
+    } catch (e) { alerta.falha(e, "Não foi possível salvar."); }
     finally { setSalvando(false); }
   }
 
   async function alternar(s: Sistema) {
-    setSalvando(true); setErro(""); setSucesso("");
-    try { await enviar(`/api/admin/sistemas/${s.id}`, "PATCH", { ativo: !s.ativo }); await atualizarDados(); setSucesso(s.ativo ? "Sistema suspenso e sessões encerradas." : "Sistema reativado."); }
-    catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível alterar o sistema."); }
+    setSalvando(true);
+    try { await enviar(`/api/admin/sistemas/${s.id}`, "PATCH", { ativo: !s.ativo }); await atualizarDados(); alerta.sucesso(s.ativo ? "Sistema suspenso e sessões encerradas." : "Sistema reativado."); }
+    catch (e) { alerta.falha(e, "Não foi possível alterar o sistema."); }
     finally { setSalvando(false); }
   }
   const clientes = (data?.clientes ?? []).filter(c => `${c.nome} ${c.emailContato ?? ""} ${c.documento ?? ""} ${c.sistemas.map(s => `${s.nome} ${s.usuarios.map(u => u.email).join(" ")}`).join(" ")}`.toLowerCase().includes(busca.toLowerCase()));
@@ -95,8 +94,7 @@ export default function AdminPage() {
       <Metrica icone={Users} rotulo="Usuários ativos" valor={data ? String(data.metricas.usuariosAtivos) : "—"} detalhe="Gestores, vendedores e atendentes" />
     </div>
     <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50/70 px-5 py-4 text-sm leading-6 text-slate-600">Cada cliente pode ter vários sistemas. Cada sistema tem dados e equipe próprios. A demonstração fica fora destes indicadores. Sistemas vendidos considera os cadastros atuais, inclusive suspensos; clientes excluídos ficam fora dos totais.</div>
-    {sucesso && <p role="status" className="mb-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">{sucesso}</p>}
-    {(error || (erro && !dialogo)) && <div role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{erro || "Não foi possível carregar os clientes."} <button className="underline" onClick={() => void mutate()}>Tentar novamente</button></div>}
+    {error && !isLoading && <div role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">Não foi possível carregar os clientes. <button className="underline" onClick={() => void mutate()}>Tentar novamente</button></div>}
     <Card>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4"><div><h2 className="text-lg font-semibold text-navy">Seus clientes</h2><p className="mt-1 text-sm text-slate-500">Gerencie o acesso e acompanhe os sistemas de cada cliente.</p></div><label className="flex w-full items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 sm:w-80"><Search className="h-4 w-4 text-slate-400" /><input aria-label="Buscar clientes" placeholder="Nome, documento, sistema ou e-mail" value={busca} onChange={e => setBusca(e.target.value)} className="min-w-0 flex-1 text-sm outline-none" /></label></div>
       {isLoading && <p className="py-10 text-center text-slate-500">Carregando clientes…</p>}
@@ -144,7 +142,6 @@ export default function AdminPage() {
           <label className="block text-sm font-medium">Nome do responsável<input name="responsavel" className={campo} required minLength={2} maxLength={120} /></label><label className="block text-sm font-medium">E-mail<input name="email" type="email" autoComplete="off" className={campo} required /></label><CampoSenha autoComplete="new-password" minLength={12} /><p className="text-xs text-slate-400">Defina uma senha com 12 a 72 caracteres e compartilhe com o responsável.</p>
         </>}
       </fieldset>
-      {erro && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{erro}</p>}
       <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-4"><Botao type="button" variante="secundario" disabled={salvando} onClick={fechar}>Cancelar</Botao><Botao type="submit" variante={dialogo.tipo === "excluir" ? "perigo" : "primario"} disabled={salvando || (dialogo.tipo === "excluir" && (confirmacao !== dialogo.cliente.nome || (!!exclusao && restante > 0)))}>{salvando ? "Aguarde…" : dialogo.tipo === "excluir" ? exclusao ? restante > 0 ? `Tem certeza? (${restante}s)` : "Sim, tenho certeza. Excluir" : "Excluir cliente" : dialogo.tipo.startsWith("editar-") ? "Salvar alterações" : "Criar cadastro"}</Botao></div>
     </form></Modal>}
   </>;

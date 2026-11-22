@@ -1,4 +1,6 @@
 "use client";
+import { alerta } from "@/lib/alertas";
+import { requisitar } from "@/lib/api";
 
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -15,7 +17,6 @@ export default function RedefinirSenhaPage() {
   const [token, setToken] = useState("");
   const [estado, setEstado] = useState<"carregando" | "valido" | "invalido" | "erro" | "sucesso">("carregando");
   const [salvando, setSalvando] = useState(false);
-  const [erro, setErro] = useState("");
   const [tentativa, setTentativa] = useState(0);
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmacao, setConfirmacao] = useState("");
@@ -35,7 +36,7 @@ export default function RedefinirSenhaPage() {
     setEstado("carregando");
     async function verificar() {
       try {
-        const resposta = await fetch("/api/auth/recuperacao/validar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }), signal: controller.signal });
+        const resposta = await requisitar("/api/auth/recuperacao/validar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }), signal: controller.signal });
         if (!resposta.ok) { setEstado("erro"); return; }
         const corpo = await resposta.json() as { valido: boolean };
         setEstado(corpo.valido ? "valido" : "invalido");
@@ -50,20 +51,19 @@ export default function RedefinirSenhaPage() {
     const dados = new FormData(event.currentTarget);
     const senha = String(dados.get("senha"));
     const confirmar = String(dados.get("confirmacao"));
-    setErro("");
-    if (senha !== confirmar) { setErro("As senhas não coincidem."); return; }
-    if (new TextEncoder().encode(senha).length > 72) { setErro("A senha ultrapassa o tamanho máximo permitido."); return; }
+    if (senha !== confirmar) { alerta.erro("As senhas não coincidem."); return; }
+    if (new TextEncoder().encode(senha).length > 72) { alerta.erro("A senha ultrapassa o tamanho máximo permitido."); return; }
     setSalvando(true);
     try {
-      const resposta = await fetch("/api/auth/redefinir-senha", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, senha }) });
+      const resposta = await requisitar("/api/auth/redefinir-senha", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, senha }) });
       if (!resposta.ok) {
         const corpo = await resposta.json().catch(() => null) as { codigo?: string; erro?: string } | null;
         if (corpo?.codigo === "LINK_RECUPERACAO_INVALIDO") setEstado("invalido");
-        else setErro(corpo?.erro ?? (resposta.status === 429 ? "Muitas tentativas. Aguarde alguns minutos." : "Não foi possível alterar a senha. Tente novamente."));
+        else alerta.erro(corpo?.erro ?? (resposta.status === 429 ? "Muitas tentativas. Aguarde alguns minutos." : "Não foi possível alterar a senha. Tente novamente."));
         return;
       }
       setEstado("sucesso");
-    } catch { setErro("Não foi possível conectar ao servidor. Tente novamente."); }
+    } catch { alerta.erro("Não foi possível conectar ao servidor. Tente novamente."); }
     finally { setSalvando(false); }
   }
 
@@ -126,11 +126,6 @@ export default function RedefinirSenhaPage() {
                 </li>
               ))}
             </ul>
-            {erro && (
-              <div role="alert" className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
-                <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" /><span>{erro}</span>
-              </div>
-            )}
             <button type="submit" disabled={salvando} className={botaoSalvar}><Save aria-hidden="true" className="h-4 w-4" />{salvando ? "Salvando..." : "Salvar nova senha"}</button>
             <div className="pt-1">{voltar}</div>
           </div>

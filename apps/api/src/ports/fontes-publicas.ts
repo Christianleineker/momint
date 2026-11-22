@@ -1,5 +1,5 @@
 // Porta de saída para as fontes de dados públicos. Implementações em
-// infra/fontes-publicas (mock com fixtures ou HTTP ao vivo).
+// infra/fontes-publicas (HTTP ao vivo; o mock com fixtures fica só nos testes).
 import type { CnoObra, MinhaReceitaCnpj, PncpContratacao } from "../domain/gatilho/dados-publicos.js";
 
 export interface FonteCnpj {
@@ -9,6 +9,7 @@ export interface FonteCnpj {
 }
 
 export interface FontePncp {
+  /** Licitações de obra com resultado no período, com o CNPJ vencedor em `cnpjInteressado`. */
   contratacoesPublicadas(desde: Date, ate: Date): Promise<PncpContratacao[]>;
 }
 

@@ -10,3 +10,5 @@ next-env.d.ts
 .mailbox
 .npm-cache
 .acesso-admin
+
+apps/api/.backup/

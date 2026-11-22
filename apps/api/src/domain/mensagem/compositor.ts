@@ -1,6 +1,8 @@
-// Geração de mensagens (mock determinístico por templates). Um LLM real pode
+// Geração de mensagens (determinística, por templates). Um LLM real pode
 // substituir `comporPrimeiraAbordagem` mantendo o mesmo contrato.
-import { capitalizar, titulo } from "./formatacao.js";
+// O texto comercial vem da oferta cadastrada pelo cliente (OfertaCliente):
+// nada do que ele vende fica escrito aqui.
+import { capitalizar, continuarFrase, titulo } from "./formatacao.js";
 import { descreverGatilho, ganchoDoGatilho, type ContextoGatilho } from "./referencias.js";
 
 export type CanalMensagem = "EMAIL" | "WHATSAPP";
@@ -11,11 +13,19 @@ export interface MensagemGerada {
   conteudo: string;
 }
 
+/** Recorte da oferta do cliente usado na 1ª abordagem. */
+export interface OfertaMensagem {
+  produto: string;
+  proposta: string;
+  beneficio: string;
+}
+
 export interface EntradaComposicao {
   evento: ContextoGatilho;
   empresa: { nome: string };
   contato: { nome: string } | null;
   remetente: { nome: string; empresa: string };
+  oferta: OfertaMensagem;
   canal: CanalMensagem;
   voz: VozMarca;
 }
@@ -27,16 +37,18 @@ const CHAMADA: Record<VozMarca, string> = {
 };
 
 export function comporPrimeiraAbordagem(inp: EntradaComposicao): MensagemGerada {
-  const { gancho, dor } = ganchoDoGatilho(inp.evento);
-  const saudacao = inp.contato ? `Olá, ${inp.contato.nome.split(" ")[0]}` : "Olá";
+  const { gancho, momento } = ganchoDoGatilho(inp.evento);
+  const saudacao = inp.contato ? `Olá, ${titulo(inp.contato.nome.split(" ")[0])}` : "Olá";
   const cta = CHAMADA[inp.voz] ?? CHAMADA.consultivo;
+  const porQueAgora = `${capitalizar(momento)}, ${continuarFrase(inp.oferta.beneficio)}.`;
+  const apresentacao = `Na ${inp.remetente.empresa}, ${continuarFrase(inp.oferta.proposta)}.`;
 
   if (inp.canal === "WHATSAPP") {
-    return { assunto: null, conteudo: `${saudacao}! Aqui é ${inp.remetente.nome}, da ${inp.remetente.empresa}. ${capitalizar(gancho)}. ${capitalizar(dor)}. ${cta}` };
+    return { assunto: null, conteudo: `${saudacao}! Aqui é ${inp.remetente.nome}, da ${inp.remetente.empresa}. ${capitalizar(gancho)}. ${porQueAgora} ${cta}` };
   }
   return {
-    assunto: `${inp.empresa.nome} — impermeabilização para a nova etapa`,
-    conteudo: `${saudacao},\n\n${capitalizar(gancho)}. ${capitalizar(dor)}.\n\nNa ${inp.remetente.empresa} atendemos construtoras de Curitiba e região com projeto, execução e garantia de impermeabilização.\n\n${cta}\n\nAbraço,\n${inp.remetente.nome}\n${inp.remetente.empresa}`,
+    assunto: `${inp.empresa.nome} — ${continuarFrase(inp.oferta.produto)} para a nova etapa`,
+    conteudo: `${saudacao},\n\n${capitalizar(gancho)}. ${porQueAgora}\n\n${apresentacao}\n\n${cta}\n\nAbraço,\n${inp.remetente.nome}\n${inp.remetente.empresa}`,
   };
 }
 
@@ -44,10 +56,12 @@ export interface EntradaBriefing {
   empresa: { nome: string; municipio: string; porte: string; cnaeDescricao: string; idadeAnos: number };
   gatilhos: ContextoGatilho[];
   qualificacao: { necessidade: boolean; momento: boolean; encaixe: boolean };
+  /** Recorte da oferta do cliente: quem decide do lado do lead e o foco técnico. */
+  oferta: { compradores: string; pauta: string };
   ultimaResposta?: string | null;
 }
 
-/** Briefing pré-reunião: contexto da empresa + gatilhos + qualificação. */
+/** Briefing pré-reunião: contexto da empresa + gatilhos + qualificação + oferta. */
 export function gerarBriefing(inp: EntradaBriefing): string {
   const q = inp.qualificacao;
   const marca = (ok: boolean) => (ok ? "[sim]" : "[nao]");
@@ -57,6 +71,7 @@ export function gerarBriefing(inp: EntradaBriefing): string {
     `Qualificação: necessidade ${marca(q.necessidade)} · momento ${marca(q.momento)} · encaixe ${marca(q.encaixe)}.`,
   ];
   if (inp.ultimaResposta) linhas.push(`Última resposta do lead: "${inp.ultimaResposta}"`);
-  linhas.push("Sugestão de pauta: 1) cronograma e fase atual da obra; 2) áreas críticas (fundação, lajes, reservatórios); 3) quem decide a compra e prazo de cotação.");
+  linhas.push(`Quem costuma decidir: ${continuarFrase(inp.oferta.compradores)}.`);
+  linhas.push(`Sugestão de pauta: 1) cronograma e fase atual da obra; 2) ${continuarFrase(inp.oferta.pauta)}; 3) quem decide a compra e prazo de cotação.`);
   return linhas.join("\n");
 }

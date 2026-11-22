@@ -19,3 +19,11 @@ export const normalizar = (s: string) =>
     .toLowerCase()
     .replace(/(\d)\.(\d)/g, "$1$2")
     .replace(/\s+/g, " ");
+
+/** Texto digitado pelo cliente encaixado no meio de uma frase: sem ponto final e,
+ *  quando começa com palavra comum ("Atendemos"), com a inicial minúscula. Siglas
+ *  ("ART", "NBR") ficam como estão. */
+export const continuarFrase = (s: string) => {
+  const t = s.trim().replace(/[.;!\s]+$/u, "");
+  return /^\p{Lu}\p{Ll}/u.test(t) ? t.charAt(0).toLowerCase() + t.slice(1) : t;
+};

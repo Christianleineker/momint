@@ -44,6 +44,9 @@ export class ReunioesService {
     if (!podeAgendar(lead)) throw new RegraDeNegocio("Qualificação incompleta: marque necessidade, momento e encaixe (ou force manualmente)");
     if (!AGENDAVEIS.includes(lead.estagio)) throw new Conflito(`Não é possível agendar a partir de "${ROTULO_ESTAGIO[lead.estagio]}"`);
 
+    const oferta = await this.repos.ofertas.buscarDoCliente(clienteId);
+    if (!oferta) throw new RegraDeNegocio("Cadastre o que sua empresa vende em Filtro e Segmentação para gerar o briefing da reunião");
+
     const eventos = await this.repos.eventos.listarDaEmpresa(lead.empresaId);
     const briefing = gerarBriefing({
       empresa: {
@@ -55,6 +58,7 @@ export class ReunioesService {
       },
       gatilhos: eventos.map(contextoDoGatilho),
       qualificacao: lead,
+      oferta,
       ultimaResposta: lead.mensagens[0]?.conteudo,
     });
 

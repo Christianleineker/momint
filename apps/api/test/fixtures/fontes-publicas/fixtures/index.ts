@@ -1,7 +1,7 @@
 // Fixtures realistas no formato das fontes públicas.
 // CNPJs fictícios (exibidos mascarados na interface). Nicho: construção civil,
 // Curitiba e região metropolitana. Gatilhos datados de ago/set de 2026.
-import type { CnoObra, MinhaReceitaCnpj, PncpContratacao } from "../../../domain/gatilho/dados-publicos.js";
+import type { CnoObra, MinhaReceitaCnpj, PncpContratacao } from "../../../../src/domain/gatilho/dados-publicos.js";
 
 const socio = (nome: string, q = "Sócio-Administrador") => ({ nome_socio: nome, qualificacao_socio: q });
 

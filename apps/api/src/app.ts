@@ -18,6 +18,9 @@ import { reunioesRoutes } from "./modules/reunioes/reunioes.routes.js";
 import { usuariosRoutes } from "./modules/usuarios/usuarios.routes.js";
 import { adminRoutes } from "./modules/admin/admin.routes.js";
 import { suporteAdminRoutes, suportePublicoRoutes } from "./modules/suporte/suporte.routes.js";
+import { gatilhosRoutes } from "./modules/gatilhos/gatilhos.routes.js";
+import { notificacoesRoutes } from "./modules/notificacoes/notificacoes.routes.js";
+import { ofertaRoutes } from "./modules/oferta/oferta.routes.js";
 
 export interface OpcoesApp {
   container: Container;
@@ -57,6 +60,9 @@ export async function criarApp({ container: c, jwtSecret, logger = false, produc
       await privado.register(icpRoutes(c.icp));
       await privado.register(configuracoesRoutes(c.configuracoes));
       await privado.register(usuariosRoutes(c.usuarios));
+      await privado.register(gatilhosRoutes(c.gatilhos));
+      await privado.register(notificacoesRoutes(c.notificacoes));
+      await privado.register(ofertaRoutes(c.oferta));
     },
     { prefix: "/api" },
   );

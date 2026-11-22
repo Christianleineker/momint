@@ -3,7 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import { randomBytes } from "node:crypto";
 import { criarRepositorios } from "./infra/database/repositories/index.js";
 import { UnitOfWork } from "./infra/database/unit-of-work.js";
-import { geocodificadorMunicipios } from "./infra/geocodificacao/municipios.js";
+import { GeocodificadorIbge } from "./infra/geocodificacao/ibge.js";
 import { bcryptHasher } from "./infra/seguranca/bcrypt-hasher.js";
 import type { FontesPublicas } from "./ports/fontes-publicas.js";
 import type { Geocodificador } from "./ports/geocodificador.js";
@@ -24,6 +24,9 @@ import { UsuariosService } from "./modules/usuarios/usuarios.service.js";
 import { AdminService } from "./modules/admin/admin.service.js";
 import { AcessoService } from "./modules/auth/acesso.service.js";
 import { SuporteService } from "./modules/suporte/suporte.service.js";
+import { GatilhosService } from "./modules/gatilhos/gatilhos.service.js";
+import { NotificacoesService } from "./modules/notificacoes/notificacoes.service.js";
+import { OfertaService } from "./modules/oferta/oferta.service.js";
 
 export interface Dependencias {
   prisma: PrismaClient;
@@ -37,9 +40,10 @@ export interface Dependencias {
   segredoOtp?: string;
 }
 
-export function criarContainer({ prisma, fontes, relogio, geocodificador = geocodificadorMunicipios, hasher = bcryptHasher, email, urlWeb, agoraAutenticacao, segredoOtp }: Dependencias) {
+export function criarContainer({ prisma, fontes, relogio, geocodificador: geocodificadorInformado, hasher = bcryptHasher, email, urlWeb, agoraAutenticacao, segredoOtp }: Dependencias) {
   const repos = criarRepositorios(prisma);
   const uow = new UnitOfWork(prisma);
+  const geocodificador = geocodificadorInformado ?? new GeocodificadorIbge(prisma);
 
   const supressao = new SupressaoService(repos, uow);
   const abordagem = new AbordagemService(repos, uow, supressao, relogio);
@@ -62,6 +66,9 @@ export function criarContainer({ prisma, fontes, relogio, geocodificador = geoco
     icp: new IcpService(repos, geocodificador, radar),
     configuracoes: new ConfiguracoesService(repos),
     usuarios: new UsuariosService(repos, hasher),
+    gatilhos: new GatilhosService(repos),
+    notificacoes: new NotificacoesService(repos),
+    oferta: new OfertaService(repos),
   };
 }
 

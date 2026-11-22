@@ -1,13 +1,14 @@
-// Seed do MVP: roda o pipeline REAL (adapters mock → ingestão → motor de match)
-// e depois conduz alguns leads pelo funil usando os mesmos serviços da API.
-import "dotenv/config";
+// Cenário FICTÍCIO usado somente pelos testes de integração: roda o pipeline real
+// (fontes fictícias -> ingestão -> match) e conduz alguns leads pelo funil.
+// Nunca é executado no banco da aplicação.
 import bcrypt from "bcryptjs";
 import { PrismaClient, type Prisma } from "@prisma/client";
-import { criarContainer, criarRelogio } from "../src/container.js";
-import { fontesMock } from "../src/infra/fontes-publicas/mock.js";
-import { contatosFixture } from "../src/infra/fontes-publicas/fixtures/index.js";
+import { criarContainer, criarRelogio } from "../../src/container.js";
+import { fontesMock } from "./fontes-publicas/mock.js";
+import { contatosFixture } from "./fontes-publicas/fixtures/index.js";
+import { OFERTA_TESTE } from "./oferta.js";
 
-const HOJE_ISO = process.env.MOMINT_HOJE ?? "2026-09-30";
+const HOJE_ISO = "2026-09-30";
 export const SENHA_DEMO = "momint123";
 
 export async function seed(db: PrismaClient) {
@@ -66,16 +67,21 @@ export async function seed(db: PrismaClient) {
     ],
   });
 
+  await db.ofertaCliente.create({ data: { clienteId: impersul.id, ...OFERTA_TESTE } });
+
   // Segundo cliente — prova de isolamento multi-cliente.
   const outro = await db.cliente.create({ data: { nome: "Esquadrias Paraná", vozMarca: "direto", contaCliente: { create: { nome: "Esquadrias Paraná" } } } });
   await db.usuario.create({ data: { clienteId: outro.id, nome: "Gestor Esquadrias", email: "admin@esquadrias.com.br", senhaHash, papel: "GESTOR" } });
   await db.perfilICP.create({
     data: { clienteId: outro.id, cnaes: ["4120400"], portes: ["DEMAIS"], cidadeBase: "CURITIBA", ufBase: "PR", latBase: -25.4284, lngBase: -49.2733, raioKm: 30, idadeMinAnos: 3, idadeMaxAnos: 40 },
   });
+  await db.ofertaCliente.create({ data: { clienteId: outro.id, ...OFERTA_TESTE, produto: "esquadrias de alumínio" } });
 
   // Contatos precisam existir antes do radar (empresas vêm da ingestão, então
   // pré-cadastramos após a ingestão pelas próprias fixtures).
   await app.radar.sincronizar();
+  // O cenário usa só os contatos das fixtures, não os tirados do QSA na ingestão.
+  await db.contato.deleteMany({ where: { origem: "RECEITA_FEDERAL" } });
   for (const c of contatosFixture) {
     const emp = await db.empresaAlvo.findUnique({ where: { cnpj: c.cnpj } });
     if (emp) await db.contato.create({ data: { empresaId: emp.id, nome: c.nome, cargo: c.cargo, email: c.email, telefone: c.telefone } });
@@ -191,14 +197,3 @@ async function historico(db: PrismaClient, clienteId: string, vendedores: string
   }
 }
 
-// Execução direta: `tsx prisma/seed.ts`
-if (process.argv[1]?.replace(/\\/g, "/").endsWith("prisma/seed.ts")) {
-  const db = new PrismaClient();
-  seed(db)
-    .then(() => console.log(`Seed concluído. Login: gestor@impersul.com.br / ${SENHA_DEMO}`))
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    })
-    .finally(() => db.$disconnect());
-}

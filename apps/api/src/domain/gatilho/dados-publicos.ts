@@ -28,9 +28,15 @@ export interface PncpContratacao {
   modalidadeNome: string;
   valorTotalEstimado: number;
   dataPublicacaoPncp: string; // ISO
-  /** Não vem no endpoint de publicação: no MVP, o CNPJ interessado/vencedor
-   *  vem do cruzamento com resultados/propostas. Mantido explícito aqui. */
+  /** CNPJ da empresa vencedora (vem do cruzamento com o resultado da licitação). */
   cnpjInteressado: string;
+  /** Resultado homologado do item 1 (GET .../itens/1/resultados): quem venceu, quando e por quanto. */
+  resultado?: {
+    niFornecedor: string;
+    nomeRazaoSocialFornecedor: string;
+    valorTotalHomologado: number | null;
+    dataResultado: string; // YYYY-MM-DD
+  };
 }
 
 /** CNO via Base dos Dados (BigQuery) — linha agregada */

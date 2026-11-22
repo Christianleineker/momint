@@ -1,4 +1,5 @@
 "use client";
+import { alerta } from "@/lib/alertas";
 import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
 import { Bell, Building2, Check, CheckCheck, Monitor, RefreshCw, Trash2, X } from "lucide-react";
@@ -12,7 +13,6 @@ export function NotificacoesAdmin() {
   const { data, error, isLoading, mutate } = useSWR<Dados>(CHAVE_NOTIFICACOES_ADMIN, lerJson, { refreshInterval: 15_000 });
   const [aberto, setAberto] = useState(false);
   const [filtro, setFiltro] = useState("recentes");
-  const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const botao = useRef<HTMLButtonElement>(null);
@@ -25,9 +25,9 @@ export function NotificacoesAdmin() {
   }, [aberto]);
   useEffect(() => { if (error instanceof ErroApi && [401, 403].includes(error.status)) window.location.href = "/entrada"; }, [error]);
   async function marcar(ids?: string[]) {
-    setErro(""); setSalvando(true);
+    setSalvando(true);
     try { await enviar(CHAVE_NOTIFICACOES_ADMIN, "PATCH", ids ? { ids } : { todas: true }); await mutate(); }
-    catch { setErro("Não foi possível marcar as notificações como lidas."); }
+    catch { alerta.erro("Não foi possível marcar as notificações como lidas."); }
     finally { setSalvando(false); }
   }
   const itens = (data?.itens ?? []).filter(n => filtro === "recentes" || !n.lidaEm);
@@ -41,7 +41,6 @@ export function NotificacoesAdmin() {
         return <li key={n.id} className={`flex gap-3 px-4 py-3 ${n.lidaEm ? "bg-white" : "bg-blue-50/50"}`}><span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-blue-100 text-acento"><Icone className="h-4 w-4" /></span><div className="min-w-0 flex-1"><p className="text-xs font-semibold text-navy">{n.titulo}</p><p className="mt-1 break-words text-xs leading-5 text-slate-500">{n.texto}</p><time className="mt-1 block text-[11px] text-slate-400" dateTime={n.criadoEm}>{new Date(n.criadoEm).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}</time></div>{!n.lidaEm && <button disabled={salvando} aria-label={`Marcar como lida: ${n.titulo}`} onClick={() => void marcar([n.id])} className="h-7 rounded p-1 text-acento hover:bg-blue-100"><Check className="h-4 w-4" /></button>}</li>;
       })}</ul>}</div>
       {!!data?.naoLidas && <button disabled={salvando} onClick={() => void marcar()} className="flex shrink-0 items-center justify-center gap-2 border-t border-slate-100 px-4 py-3 text-xs font-medium text-acento hover:bg-blue-50"><CheckCheck className="h-4 w-4" />Marcar todas como lidas</button>}
-      {erro && <p role="alert" className="border-t border-slate-100 p-3 text-xs text-red-600">{erro}</p>}
     </section>}
   </div>;
 }

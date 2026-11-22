@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import type { LeadsService } from "./leads.service.js";
-import { donoBody, idParams, moverEstagioBody, qualificacaoBody } from "./leads.schemas.js";
+import { contatoBody, donoBody, idParams, moverEstagioBody, qualificacaoBody } from "./leads.schemas.js";
 
 export const leadsRoutes =
   (leads: LeadsService): FastifyPluginAsync =>
@@ -27,5 +27,11 @@ export const leadsRoutes =
       const { id } = idParams.parse(req.params);
       await leads.alterarDono(req.user.clienteId, id, donoBody.parse(req.body).donoId);
       return { ok: true };
+    });
+
+    app.post("/leads/:id/contatos", async (req) => {
+      const { id } = idParams.parse(req.params);
+      const { nome, cargo, email, telefone } = contatoBody.parse(req.body);
+      return leads.adicionarContato(req.user.clienteId, id, { nome, cargo: cargo ?? null, email: email ?? null, telefone: telefone ?? null });
     });
   };

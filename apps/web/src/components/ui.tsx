@@ -1,18 +1,20 @@
 import { TrendingUp, type LucideIcon } from "lucide-react";
 
+/** Símbolo do Momint: o "M" com um sinal no vale, como um radar emitindo —
+ *  o gatilho detectado no momento certo. Usa o próprio favicon (app/icon.svg) como
+ *  imagem: uma única fonte do desenho e sem conflito de ids de degradê entre cópias
+ *  na mesma página (uma cópia escondida quebrava o "M" das outras). */
+export function MarcaMomint({ className = "h-8 w-8" }: { className?: string }) {
+  // eslint-disable-next-line @next/next/no-img-element -- SVG estático e pequeno, sem ganho com next/image
+  return <img src="/icon.svg" alt="" aria-hidden="true" draggable={false} className={className} />;
+}
+
+/** Logo completa: símbolo + nome. Em fundo escuro (`claro`), o nome fica branco. */
 export function Logo({ claro = true }: { claro?: boolean }) {
   return (
-    <div className="flex items-center gap-2">
-      <svg viewBox="0 0 32 28" className="h-7 w-8" aria-hidden>
-        <path d="M2 26V3l14 13L30 3v23" fill="none" stroke="url(#g)" strokeWidth="5" strokeLinejoin="round" />
-        <defs>
-          <linearGradient id="g" x1="0" x2="1">
-            <stop offset="0" stopColor="#38bdf8" />
-            <stop offset="1" stopColor="#2563eb" />
-          </linearGradient>
-        </defs>
-      </svg>
-      <span className={`text-2xl font-bold ${claro ? "text-white" : "text-navy"}`}>Momint</span>
+    <div className="flex items-center gap-2.5">
+      <MarcaMomint className={`h-9 w-9 shrink-0 rounded-lg ${claro ? "ring-1 ring-white/15" : "shadow-sm"}`} />
+      <span className={`text-2xl font-bold tracking-tight ${claro ? "text-white" : "text-navy"}`}>Momint</span>
     </div>
   );
 }

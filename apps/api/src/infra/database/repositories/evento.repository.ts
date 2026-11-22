@@ -13,9 +13,10 @@ export interface NovoEvento {
 export class EventoRepository {
   constructor(private readonly db: DbClient) {}
 
-  /** Idempotente: um mesmo evento da fonte (externalId) é registrado uma única vez. */
+  /** Idempotente: um mesmo evento da fonte (externalId) é registrado uma única vez;
+   *  uma nova varredura só atualiza os dados (ex.: o resultado saiu depois). */
   registrar(ev: NovoEvento) {
-    return this.db.eventoDeGatilho.upsert({ where: { externalId: ev.externalId }, create: ev, update: {} });
+    return this.db.eventoDeGatilho.upsert({ where: { externalId: ev.externalId }, create: ev, update: { detectadoEm: ev.detectadoEm, resumo: ev.resumo, dadosBrutos: ev.dadosBrutos } });
   }
 
   buscarPorId(id: string) {

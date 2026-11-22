@@ -6,6 +6,7 @@ import { calcularFrescor } from "../../domain/gatilho/frescor.js";
 import { avaliarFit } from "../../domain/icp/fit.js";
 import { planejarLead } from "../../domain/lead/planejamento.js";
 import { classificarPrioridade } from "../../domain/lead/prioridade.js";
+import { titulo } from "../../domain/mensagem/formatacao.js";
 import { descreverGatilho } from "../../domain/mensagem/referencias.js";
 import { DIA_MS } from "../../domain/shared/numeros.js";
 import type { Repositorios } from "../../infra/database/repositories/index.js";
@@ -15,10 +16,13 @@ import type { Relogio } from "../../ports/relogio.js";
 import { mascararCnpj, nomeEmpresa } from "../../shared/apresentacao.js";
 import { Conflito, NaoEncontrado } from "../../shared/erros.js";
 import { normalizarMunicipio } from "../../shared/texto.js";
+import { emLotes } from "../../shared/lotes.js";
 import type { AbordagemService } from "../abordagem/abordagem.service.js";
 
 /** Quanto do passado cada varredura das fontes cobre. */
 const HORIZONTE_INGESTAO_DIAS = 120;
+/** Consultas simultâneas à API pública de CNPJ durante a varredura. */
+const CONSULTAS_CNPJ_SIMULTANEAS = 4;
 
 export type StatusRadar = "APTO" | "EXPIRADO" | "FORA_DO_ICP" | "FONTE_INATIVA";
 
@@ -37,25 +41,44 @@ export class RadarService {
     const desde = new Date(hoje.getTime() - HORIZONTE_INGESTAO_DIAS * DIA_MS);
     const tipos = await this.repos.eventos.tiposPorCodigo();
     let eventosProcessados = 0;
+    const fontesIndisponiveis: string[] = [];
 
-    for (const obra of await this.fontes.cno.obrasRegistradas(desde, "PR")) {
-      const cadastro = await this.fontes.cnpj.buscar(obra.niResponsavel);
-      if (!cadastro) continue;
-      await this.registrar(tipos, "CNO", cadastro, `CNO:${obra.cno}`, new Date(`${obra.dataRegistro}T12:00:00Z`), obra);
-      eventosProcessados++;
-    }
-    for (const lic of await this.fontes.pncp.contratacoesPublicadas(desde, hoje)) {
-      if (!lic.cnpjInteressado) continue;
-      const cadastro = await this.fontes.cnpj.buscar(lic.cnpjInteressado);
-      if (!cadastro) continue;
-      await this.registrar(tipos, "PNCP", cadastro, `PNCP:${lic.numeroControlePNCP}`, new Date(lic.dataPublicacaoPncp), lic);
-      eventosProcessados++;
-    }
-    for (const cadastro of await this.fontes.cnpj.novasEmpresas(desde)) {
-      await this.registrar(tipos, "CNPJ_NOVO", cadastro, `CNPJ_NOVO:${cadastro.cnpj}`, new Date(`${cadastro.data_inicio_atividade}T12:00:00Z`), cadastro);
-      eventosProcessados++;
-    }
-    return { eventosProcessados };
+    // Uma fonte fora do ar (ou sem integração disponível) não impede as outras.
+    const varrer = async (fonte: string, tarefa: () => Promise<void>) => {
+      try {
+        await tarefa();
+      } catch (e) {
+        fontesIndisponiveis.push(`${fonte}: ${e instanceof Error ? e.message : "indisponível"}`);
+      }
+    };
+
+    await varrer("CNO", async () => {
+      for (const obra of await this.fontes.cno.obrasRegistradas(desde, "PR")) {
+        const cadastro = await this.fontes.cnpj.buscar(obra.niResponsavel);
+        if (!cadastro) continue;
+        await this.registrar(tipos, "CNO", cadastro, `CNO:${obra.cno}`, new Date(`${obra.dataRegistro}T12:00:00Z`), obra);
+        eventosProcessados++;
+      }
+    });
+    await varrer("PNCP", async () => {
+      const licitacoes = (await this.fontes.pncp.contratacoesPublicadas(desde, hoje)).filter((l) => l.cnpjInteressado);
+      const cadastros = await this.cadastrosCnpj(licitacoes.map((l) => l.cnpjInteressado));
+      for (const lic of licitacoes) {
+        const cadastro = cadastros.get(lic.cnpjInteressado);
+        if (!cadastro) continue;
+        // O gatilho é a vitória na licitação: vale a data do resultado, não a do edital.
+        const detectadoEm = lic.resultado ? new Date(`${lic.resultado.dataResultado}T12:00:00Z`) : new Date(lic.dataPublicacaoPncp);
+        await this.registrar(tipos, "PNCP", cadastro, `PNCP:${lic.numeroControlePNCP}`, detectadoEm, lic);
+        eventosProcessados++;
+      }
+    });
+    await varrer("CNPJ novo", async () => {
+      for (const cadastro of await this.fontes.cnpj.novasEmpresas(desde)) {
+        await this.registrar(tipos, "CNPJ_NOVO", cadastro, `CNPJ_NOVO:${cadastro.cnpj}`, new Date(`${cadastro.data_inicio_atividade}T12:00:00Z`), cadastro);
+        eventosProcessados++;
+      }
+    });
+    return { eventosProcessados, fontesIndisponiveis };
   }
 
   /** Motor de match de um cliente: cria/atualiza leads a partir de todos os gatilhos. */
@@ -166,12 +189,12 @@ export class RadarService {
   }
 
   /** "Adicionar à fila": gera o rascunho de 1ª abordagem para a empresa do evento. */
-  async adicionarAFila(clienteId: string, eventoId: string, canal: Canal) {
+  async adicionarAFila(clienteId: string, eventoId: string, canal: Canal, autorId?: string) {
     const evento = await this.repos.eventos.buscarPorId(eventoId);
     if (!evento) throw new NaoEncontrado("Evento não encontrado");
     const lead = await this.repos.leads.buscarPorEmpresa(clienteId, evento.empresaId);
     if (!lead) throw new Conflito("Empresa não passou no filtro de ICP/frescor");
-    return this.abordagem.abordar(clienteId, lead.id, canal);
+    return this.abordagem.abordar(clienteId, lead.id, canal, autorId);
   }
 
   private async registrar(
@@ -182,7 +205,9 @@ export class RadarService {
     detectadoEm: Date,
     bruto: object,
   ) {
-    const empresa = await this.repos.empresas.upsertPorCnpj(cadastro.cnpj, this.firmografia(cadastro));
+    const empresa = await this.repos.empresas.upsertPorCnpj(cadastro.cnpj, await this.firmografia(cadastro));
+    await this.repos.cnaes.registrar(empresa.cnae, empresa.cnaeDescricao);
+    await this.contatoPublico(empresa.id, cadastro);
     return this.repos.eventos.registrar({
       externalId,
       empresaId: empresa.id,
@@ -193,9 +218,40 @@ export class RadarService {
     });
   }
 
+  /** Cadastros CNPJ das empresas, sem repetir CNPJ e poucos por vez (API pública).
+   *  Um CNPJ que falhar fica de fora desta varredura, sem derrubar as demais. */
+  private async cadastrosCnpj(cnpjs: string[]) {
+    const unicos = [...new Set(cnpjs)];
+    const cadastros = await emLotes(unicos, CONSULTAS_CNPJ_SIMULTANEAS, (cnpj) => this.fontes.cnpj.buscar(cnpj).catch(() => null));
+    const porCnpj = new Map<string, MinhaReceitaCnpj>();
+    unicos.forEach((cnpj, i) => {
+      const cadastro = cadastros[i];
+      if (cadastro) porCnpj.set(cnpj, cadastro);
+    });
+    return porCnpj;
+  }
+
+  /** Empresa ainda sem contato ganha um a partir do quadro societário público (QSA):
+   *  o sócio-administrador, com o e-mail e o telefone que a empresa informou à Receita. */
+  private async contatoPublico(empresaId: string, e: MinhaReceitaCnpj) {
+    if (!e.email && !e.ddd_telefone_1) return;
+    if ((await this.repos.empresas.listarContatos(empresaId)).length) return;
+    const socios = e.qsa ?? [];
+    const socio = socios.find((s) => /administrador/i.test(s.qualificacao_socio)) ?? socios[0];
+    if (!socio) return;
+    await this.repos.empresas.criarContato({
+      empresaId,
+      nome: titulo(socio.nome_socio),
+      cargo: socio.qualificacao_socio,
+      email: e.email?.toLowerCase() ?? null,
+      telefone: e.ddd_telefone_1 ?? null,
+      origem: "RECEITA_FEDERAL",
+    });
+  }
+
   /** Cadastro CNPJ (formato minhareceita) → firmografia do cache EmpresaAlvo. */
-  private firmografia(e: MinhaReceitaCnpj) {
-    const coord = this.geo.coordenadas(e.municipio);
+  private async firmografia(e: MinhaReceitaCnpj) {
+    const coord = await this.geo.coordenadas(e.municipio, e.uf);
     return {
       razaoSocial: e.razao_social,
       nomeFantasia: e.nome_fantasia ?? null,

@@ -1,4 +1,5 @@
 "use client";
+import { alerta } from "@/lib/alertas";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -19,6 +20,7 @@ type MensagemFila = {
 };
 
 type Acao = "aprovar" | "rejeitar" | "salvar";
+const SUCESSO: Record<Acao, string> = { aprovar: "Mensagem aprovada e enviada.", rejeitar: "Mensagem rejeitada.", salvar: "Alterações salvas." };
 
 /** Destaca no corpo o trecho que cita o gatilho, com a etiqueta "cita o gatilho". */
 function destacarGatilho(texto: string, trecho: string) {
@@ -42,20 +44,19 @@ function PreviaMensagem({ m, remetente, aoMudar }: { m: MensagemFila; remetente:
   const [assunto, setAssunto] = useState("");
   const [conteudo, setConteudo] = useState("");
   const [ocupado, setOcupado] = useState<Acao | null>(null);
-  const [erro, setErro] = useState("");
 
   async function executar(acao: Acao, tarefa: () => Promise<unknown>) {
     setOcupado(acao);
-    setErro("");
     try {
       await tarefa();
       await aoMudar();
+      alerta.sucesso(SUCESSO[acao]);
     } catch (e) {
       if (e instanceof ErroApi && e.status === 401) {
         router.replace("/login");
         return;
       }
-      setErro(e instanceof Error ? e.message : "Erro inesperado.");
+      alerta.falha(e, "Não foi possível concluir a ação.");
     } finally {
       setOcupado(null);
     }
@@ -64,13 +65,12 @@ function PreviaMensagem({ m, remetente, aoMudar }: { m: MensagemFila; remetente:
   function iniciarEdicao() {
     setAssunto(m.assunto ?? "");
     setConteudo(m.conteudo);
-    setErro("");
     setEditando(true);
   }
 
   function salvar() {
     if (!conteudo.trim()) {
-      setErro("A mensagem não pode ficar vazia.");
+      alerta.erro("A mensagem não pode ficar vazia.");
       return;
     }
     void executar("salvar", async () => {
@@ -133,7 +133,6 @@ function PreviaMensagem({ m, remetente, aoMudar }: { m: MensagemFila; remetente:
         ) : (
           <pre className="whitespace-pre-wrap font-sans text-sm leading-7 text-slate-700">{destacarGatilho(m.conteudo, m.gatilho.resumo)}</pre>
         )}
-        {erro && <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
       </div>
 
       <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-5 py-4">

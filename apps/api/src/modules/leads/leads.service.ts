@@ -31,6 +31,13 @@ export interface Qualificacao {
   qualificacaoForcada?: boolean;
 }
 
+export interface NovoContato {
+  nome: string;
+  cargo: string | null;
+  email: string | null;
+  telefone: string | null;
+}
+
 export class LeadsService {
   constructor(
     private readonly repos: Repositorios,
@@ -56,6 +63,16 @@ export class LeadsService {
         atualizadoEm: l.atualizadoEm,
       };
     });
+  }
+
+  /** Contato achado pelo time (ex.: o engenheiro da obra). Lead parado por falta
+   *  de contato volta a ficar apto para a abordagem. */
+  async adicionarContato(clienteId: string, leadId: string, dados: NovoContato) {
+    const lead = await this.repos.leads.buscarDoCliente(clienteId, leadId);
+    if (!lead) throw new NaoEncontrado("Lead não encontrado");
+    const contato = await this.repos.empresas.criarContato({ empresaId: lead.empresaId, ...dados, origem: "MANUAL" });
+    if (lead.estagio === "SEM_CONTATO") await this.repos.leads.atualizar(lead.id, { estagio: "APTO" });
+    return contato;
   }
 
   async detalhar(clienteId: string, id: string) {

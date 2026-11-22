@@ -92,3 +92,36 @@ html, body { overflow-x: clip; }
 .login-apresentacao h1 { font-size: clamp(26px, 4.6vh, 36px); }
 .login-apresentacao-conteudo { gap: clamp(14px, 3.4vh, 32px); }
 .login-destaques { display: flex; flex-direction: column; gap: clamp(12px, 2.6vh, 24px); }
+
+/* Barra de rolagem do sistema: fina, azul-escura e sem trilho aparente.
+   scrollbar-color é herdado, então vale para a página e áreas internas. */
+html { scrollbar-color: var(--color-navy-2) transparent; }
+* { scrollbar-width: thin; }
+/* No menu lateral (fundo navy) o polegar fica claro para continuar visível. */
+#menu-lateral { scrollbar-color: rgb(255 255 255 / 0.25) transparent; }
+
+/* Entrada dos alertas de sucesso e erro (components/Alertas.tsx). */
+@keyframes alerta-entrar { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.alerta-entrar { animation: alerta-entrar .2s ease-out; }
+@media (prefers-reduced-motion: reduce) { .alerta-entrar { animation: none; } }
+
+/* O Tailwind v4 deixa botões com o cursor padrão: devolve a "mãozinha" a tudo que é clicável. */
+@layer base {
+  button:not(:disabled),
+  [role="button"],
+  [role="menuitem"],
+  [role="tab"],
+  summary,
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="range"]:not(:disabled),
+  label:has(> input[type="checkbox"]:not(:disabled)),
+  label:has(> input[type="radio"]:not(:disabled)) { cursor: pointer; }
+  button:disabled, select:disabled { cursor: not-allowed; }
+}
+
+/* Entrada do spinner global (components/IndicadorCarregamento.tsx). */
+@keyframes carregamento-entrar { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+.carregamento-entrar { animation: carregamento-entrar .18s ease-out; }
+@media (prefers-reduced-motion: reduce) { .carregamento-entrar { animation: none; } }

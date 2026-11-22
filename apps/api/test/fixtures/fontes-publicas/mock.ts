@@ -1,6 +1,6 @@
 // Fontes públicas em modo mock: respondem a partir das fixtures, com o mesmo
 // formato das APIs reais.
-import type { FonteCno, FonteCnpj, FontePncp, FontesPublicas } from "../../ports/fontes-publicas.js";
+import type { FonteCno, FonteCnpj, FontePncp, FontesPublicas } from "../../../src/ports/fontes-publicas.js";
 import { empresasFixture, licitacoesFixture, obrasFixture } from "./fixtures/index.js";
 
 const soDigitos = (s: string) => s.replace(/\D/g, "");

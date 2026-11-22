@@ -1,29 +1,29 @@
 "use client";
+import { alerta } from "@/lib/alertas";
+import { requisitar } from "@/lib/api";
 
 import type { FormEvent } from "react";
 import { useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, Mail, MailCheck, Send } from "lucide-react";
+import { ArrowLeft, Mail, MailCheck, Send } from "lucide-react";
 import { AcessoLayout } from "@/components/AcessoLayout";
 
 export default function RecuperarSenhaPage() {
   const [enviando, setEnviando] = useState(false);
   const [mensagem, setMensagem] = useState("");
-  const [erro, setErro] = useState("");
 
   async function solicitar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setEnviando(true);
-    setErro("");
     try {
       const email = String(new FormData(event.currentTarget).get("email") ?? "").trim();
-      const resposta = await fetch("/api/auth/recuperar-senha", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) });
+      const resposta = await requisitar("/api/auth/recuperar-senha", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) });
       if (!resposta.ok) {
-        setErro(resposta.status === 429 ? "Muitas solicitações. Aguarde alguns minutos antes de tentar novamente." : "Não foi possível solicitar a recuperação. Tente novamente.");
+        alerta.erro(resposta.status === 429 ? "Muitas solicitações. Aguarde alguns minutos antes de tentar novamente." : "Não foi possível solicitar a recuperação. Tente novamente.");
         return;
       }
       setMensagem("Se o e-mail estiver associado a uma conta ativa, você receberá um link de recuperação. Confira também a pasta de spam.");
-    } catch { setErro("Não foi possível conectar ao servidor. Tente novamente."); }
+    } catch { alerta.erro("Não foi possível conectar ao servidor. Tente novamente."); }
     finally { setEnviando(false); }
   }
 
@@ -62,12 +62,6 @@ export default function RecuperarSenhaPage() {
               <input name="email" type="email" required autoComplete="email" placeholder="seu@email.com" className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
             </div>
           </label>
-          {erro && (
-            <div role="alert" className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
-              <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{erro}</span>
-            </div>
-          )}
           <button type="submit" disabled={enviando} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-acento font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70">
             <Send aria-hidden="true" className="h-4 w-4" />{enviando ? "Enviando..." : "Enviar link"}
           </button>

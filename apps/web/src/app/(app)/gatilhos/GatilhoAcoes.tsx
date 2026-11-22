@@ -7,17 +7,20 @@ import { Copy, MoreHorizontal, Pause, Pencil, Play, Save, Trash2, X } from "luci
 import { Botao, FONTE_ROTULO } from "@/components/ui";
 
 export type Fonte = "CNO" | "PNCP" | "CNPJ_NOVO";
+/** Regra de gatilho como a API devolve (GET /api/gatilhos). */
 export type Gatilho = {
   id: string;
   nome: string;
   descricao: string;
   fonte: Fonte;
   criterio: string;
-  responsavel: string;
   ativo: boolean;
-  ultimaOcorrencia: string;
-  leads: number;
+  responsavel: { id: string; nome: string } | null;
+  ultimaOcorrencia: string | null;
+  leadsGerados: number;
 };
+export type DadosGatilho = { nome: string; descricao: string; fonte: Fonte; criterio: string; responsavelId: string };
+export type Responsavel = { id: string; nome: string };
 export type Acao = "editar" | "duplicar" | "alternar" | "remover";
 export type Dialogo = { tipo: "novo" } | { tipo: "editar" | "duplicar" | "remover"; gatilho: Gatilho };
 
@@ -102,12 +105,20 @@ export function MenuGatilho({ gatilho, onAcao }: { gatilho: Gatilho; onAcao: (ac
   );
 }
 
-export function DialogoGatilho({ dialogo, responsaveis, onFechar, onSalvar, onRemover }: { dialogo: Dialogo; responsaveis: string[]; onFechar: () => void; onSalvar: (gatilho: Gatilho) => void; onRemover: (gatilho: Gatilho) => void }) {
+export function DialogoGatilho({ dialogo, responsaveis, salvando, onFechar, onSalvar, onRemover }: {
+  dialogo: Dialogo;
+  responsaveis: Responsavel[];
+  salvando: boolean;
+  onFechar: () => void;
+  onSalvar: (dados: DadosGatilho) => void;
+  onRemover: (gatilho: Gatilho) => void;
+}) {
   const ref = useRef<HTMLDialogElement>(null);
   const gatilho = dialogo.tipo === "novo" ? undefined : dialogo.gatilho;
   const existente = dialogo.tipo === "editar" ? dialogo.gatilho : undefined;
   const duplicando = dialogo.tipo === "duplicar";
   const campo = "mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-acento focus:ring-2 focus:ring-blue-100";
+  const responsavelInicial = existente?.responsavel && responsaveis.some((r) => r.id === existente.responsavel?.id) ? existente.responsavel.id : responsaveis[0]?.id ?? "";
 
   useEffect(() => {
     const elemento = ref.current;
@@ -118,60 +129,45 @@ export function DialogoGatilho({ dialogo, responsaveis, onFechar, onSalvar, onRe
 
   function salvar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = event.currentTarget;
-    const dados = new FormData(form);
-    for (const nome of ["nome", "descricao", "criterio"]) {
-      const controle = form.elements.namedItem(nome) as HTMLInputElement | HTMLTextAreaElement;
-      controle.setCustomValidity(String(dados.get(nome)).trim() ? "" : "Preencha este campo.");
-    }
-    if (!form.reportValidity()) return;
+    const dados = new FormData(event.currentTarget);
     onSalvar({
-      id: existente?.id ?? crypto.randomUUID(),
       nome: String(dados.get("nome")).trim(),
       descricao: String(dados.get("descricao")).trim(),
       fonte: dados.get("fonte") as Fonte,
       criterio: String(dados.get("criterio")).trim(),
-      responsavel: String(dados.get("responsavel")),
-      ativo: dados.has("ativo"),
-      ultimaOcorrencia: existente?.ultimaOcorrencia ?? "Ainda não ocorreu",
-      leads: existente?.leads ?? 0,
+      responsavelId: String(dados.get("responsavel")),
     });
   }
 
   return (
-    <dialog ref={ref} aria-labelledby="titulo-dialogo" onCancel={onFechar} className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-lg border border-slate-200 bg-white p-6 text-slate-700 shadow-xl backdrop:bg-navy/40" onClick={(event) => {
-      if (event.target !== event.currentTarget) return;
-      const rect = event.currentTarget.getBoundingClientRect();
-      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) onFechar();
-    }}>
+    <dialog ref={ref} aria-labelledby="titulo-dialogo" onCancel={(e) => { e.preventDefault(); if (!salvando) onFechar(); }} className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 text-slate-700 shadow-xl backdrop:bg-navy/40">
       <div className="mb-5 flex items-center justify-between gap-3">
         <h2 id="titulo-dialogo" className="text-lg font-semibold text-navy">{dialogo.tipo === "novo" ? "Novo gatilho" : duplicando ? "Duplicar gatilho" : dialogo.tipo === "editar" ? "Editar gatilho" : "Remover gatilho?"}</h2>
-        <button type="button" aria-label="Fechar" title="Fechar" onClick={onFechar} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md hover:bg-slate-100"><X className="h-5 w-5" /></button>
+        <button type="button" aria-label="Fechar" title="Fechar" disabled={salvando} onClick={onFechar} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md hover:bg-slate-100"><X className="h-5 w-5" /></button>
       </div>
       {dialogo.tipo === "remover" ? (
         <>
-          <p className="text-sm">O gatilho <strong>{dialogo.gatilho.nome}</strong> será removido da lista. Os leads já gerados serão mantidos.</p>
+          <p className="text-sm">O gatilho <strong>{dialogo.gatilho.nome}</strong> será removido. Os leads já gerados serão mantidos.</p>
           <div className="mt-6 flex justify-end gap-3">
-            <Botao variante="secundario" onClick={onFechar}>Cancelar</Botao>
-            <Botao variante="perigo" onClick={() => onRemover(dialogo.gatilho)}><Trash2 className="h-4 w-4" />Remover</Botao>
+            <Botao variante="secundario" disabled={salvando} onClick={onFechar}>Cancelar</Botao>
+            <Botao variante="perigo" disabled={salvando} onClick={() => onRemover(dialogo.gatilho)}><Trash2 className="h-4 w-4" />{salvando ? "Removendo..." : "Remover"}</Botao>
           </div>
         </>
       ) : (
-        <form onSubmit={salvar} className="space-y-4" onInput={(event) => {
-          const alvo = event.target;
-          if (alvo instanceof HTMLInputElement || alvo instanceof HTMLTextAreaElement) alvo.setCustomValidity("");
-        }}>
-          <label className="block text-sm font-medium">Nome do gatilho<input autoFocus name="nome" required maxLength={100} defaultValue={duplicando ? `${gatilho?.nome.slice(0, 92)} (cópia)` : gatilho?.nome} className={campo} /></label>
-          <label className="block text-sm font-medium">Descrição<input name="descricao" required maxLength={180} defaultValue={gatilho?.descricao} className={campo} /></label>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block text-sm font-medium">Fonte<select name="fonte" defaultValue={gatilho?.fonte ?? "CNO"} className={campo}>{Object.entries(FONTE_ROTULO).map(([codigo, nome]) => <option key={codigo} value={codigo}>{nome}</option>)}</select></label>
-            <label className="block text-sm font-medium">Responsável<select name="responsavel" required defaultValue={existente?.responsavel || responsaveis[0] || ""} className={campo}><option value="" disabled>Selecione um responsável</option>{responsaveis.map((nome) => <option key={nome}>{nome}</option>)}</select></label>
-          </div>
-          <label className="block text-sm font-medium">Critério<textarea name="criterio" required maxLength={300} rows={3} defaultValue={gatilho?.criterio} className={campo} /></label>
-          <label className="flex items-center gap-2 text-sm"><input name="ativo" type="checkbox" defaultChecked={duplicando ? false : gatilho?.ativo ?? true} className="h-4 w-4 accent-blue-600" />Gatilho ativo</label>
+        <form onSubmit={salvar} className="space-y-4">
+          <fieldset disabled={salvando} className="space-y-4">
+            <label className="block text-sm font-medium">Nome do gatilho<input autoFocus name="nome" required maxLength={100} defaultValue={duplicando ? `${gatilho?.nome.slice(0, 92)} (cópia)` : gatilho?.nome} className={campo} /></label>
+            <label className="block text-sm font-medium">Descrição<input name="descricao" required maxLength={180} defaultValue={gatilho?.descricao} className={campo} /></label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-medium">Fonte<select name="fonte" defaultValue={gatilho?.fonte ?? "CNO"} className={campo}>{Object.entries(FONTE_ROTULO).map(([codigo, nome]) => <option key={codigo} value={codigo}>{nome}</option>)}</select></label>
+              <label className="block text-sm font-medium">Responsável<select name="responsavel" required defaultValue={responsavelInicial} className={campo}><option value="" disabled>Selecione um responsável</option>{responsaveis.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}</select></label>
+            </div>
+            <label className="block text-sm font-medium">Critério<textarea name="criterio" required maxLength={300} rows={3} defaultValue={gatilho?.criterio} className={campo} /></label>
+            {!responsaveis.length && <p className="text-xs text-slate-500">Todos da equipe já cuidam de um gatilho. Cadastre outra pessoa em Configurações → Equipe.</p>}
+          </fieldset>
           <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
-            <Botao type="button" variante="secundario" onClick={onFechar}>Cancelar</Botao>
-            <Botao type="submit"><Save className="h-4 w-4" />Salvar gatilho</Botao>
+            <Botao type="button" variante="secundario" disabled={salvando} onClick={onFechar}>Cancelar</Botao>
+            <Botao type="submit" disabled={salvando || !responsaveis.length}><Save className="h-4 w-4" />{salvando ? "Salvando..." : "Salvar gatilho"}</Botao>
           </div>
         </form>
       )}
