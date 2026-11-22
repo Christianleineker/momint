@@ -4,6 +4,7 @@ import jwt from "@fastify/jwt";
 import rateLimit from "@fastify/rate-limit";
 import type { Container } from "./container.js";
 import { autenticar, COOKIE_SESSAO } from "./infra/http/autenticacao.js";
+import { ipDoCliente } from "./infra/http/ip-cliente.js";
 import { tratarErros } from "./infra/http/tratar-erros.js";
 import { abordagemRoutes } from "./modules/abordagem/abordagem.routes.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
@@ -34,7 +35,7 @@ export async function criarApp({ container: c, jwtSecret, logger = false, produc
 
   await app.register(cookie);
   await app.register(jwt, { secret: jwtSecret, cookie: { cookieName: COOKIE_SESSAO, signed: false } });
-  await app.register(rateLimit, { global: false });
+  await app.register(rateLimit, { global: false, keyGenerator: ipDoCliente });
   app.decorate("validarSessao", (sessao) => c.auth.sessaoValida(sessao));
   app.setErrorHandler(tratarErros);
 

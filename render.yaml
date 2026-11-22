@@ -1,0 +1,91 @@
+# Blueprint da Render: interface (Next.js), API (Fastify) e Postgres na mesma região.
+# A API fica só na rede privada; o navegador fala com a interface, que repassa /api para ela.
+# Passo a passo da publicação em ADMINISTRACAO.md ("Publicação na Render").
+
+services:
+  - type: web
+    name: momint-web
+    runtime: node
+    region: virginia
+    plan: starter
+    branch: master
+    buildCommand: npm ci --include=dev && npm run build -w apps/web
+    startCommand: npm run start -w apps/web
+    healthCheckPath: /login
+    buildFilter:
+      paths:
+        - apps/web/**
+        - package.json
+        - package-lock.json
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      # next start escuta na 3000; a Render encaminha o tráfego para a porta informada aqui.
+      - key: PORT
+        value: "3000"
+      - key: API_HOST
+        fromService:
+          type: pserv
+          name: momint-api
+          property: host
+      - key: API_PORT
+        value: "4000"
+
+  - type: pserv
+    name: momint-api
+    runtime: node
+    region: virginia
+    plan: starter
+    branch: master
+    buildCommand: npm ci --include=dev && npx prisma generate --schema apps/api/prisma/schema.prisma && npm run build -w apps/api
+    # Aplica as migrações (estrutura e dados de referência) antes de cada versão entrar no ar.
+    preDeployCommand: npm run db:migrate -w apps/api
+    startCommand: npm run start -w apps/api
+    buildFilter:
+      paths:
+        - apps/api/**
+        - package.json
+        - package-lock.json
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "4000"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: momint-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: OTP_SECRET
+        generateValue: true
+      # Endereço HTTPS público da interface (ex.: https://momint-web.onrender.com ou o domínio próprio).
+      - key: URL_WEB
+        sync: false
+      - key: EMAIL_TRANSPORT
+        value: smtp
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "465"
+      - key: SMTP_SECURE
+        value: "true"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      # Senha de aplicativo do Gmail, nunca a senha da conta.
+      - key: SMTP_PASS
+        sync: false
+
+databases:
+  - name: momint-db
+    region: virginia
+    plan: basic-256mb
+    postgresMajorVersion: "16"
+    databaseName: momint
+    user: momint
+    # Sem acesso externo: só os serviços da rede privada se conectam ao banco.
+    ipAllowList: []

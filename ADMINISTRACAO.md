@@ -59,3 +59,35 @@ E-mails de acesso são armazenados em minúsculas e sem espaços nas extremidade
 `iniciar-momint.cmd` inicia a interface com `next start`. Na primeira execução ou após mudanças no código/dependências, `scripts/preparar-web.mjs` compila a interface antes de abri-la. As execuções seguintes reutilizam o build quando sua assinatura corresponde aos arquivos atuais. `npm run dev` continua disponível para desenvolvimento com recarga automática; não execute `next dev` e `next start` simultaneamente sobre a mesma pasta `.next`.
 
 A validação de sessão continua consultando o banco em cada requisição para revogar acessos imediatamente, usando uma única consulta que seleciona somente o ID. Leituras de perfil repetidas no mesmo render do servidor são deduplicadas, e as consultas independentes do dashboard executam em paralelo.
+
+## Publicação na Render
+
+`render.yaml` descreve a hospedagem. São três recursos, todos em Virginia (EUA), a região da Render mais próxima do Brasil:
+
+- `momint-web`: a interface, pública.
+- `momint-api`: a API, um serviço privado que só a interface acessa.
+- `momint-db`: o Postgres.
+
+O custo aproximado é de US$ 20/mês (dois serviços Starter e um Postgres Basic). A Render publica a partir do GitHub: cada push no `master` gera uma nova versão.
+
+1. No painel da Render, abra **New → Blueprint**, conecte o repositório `momint` e confirme os três recursos.
+2. Preencha as variáveis pedidas. Em produção a API não sobe sem SMTP e sem `URL_WEB` em HTTPS.
+   - `URL_WEB`: o endereço público da interface, por exemplo `https://momint-web.onrender.com`. A Render acrescenta um sufixo quando o nome já existe; confira o endereço final no painel do `momint-web` e corrija a variável se for diferente.
+   - `SMTP_USER` e `SMTP_FROM`: a conta Gmail que envia códigos e links.
+   - `SMTP_PASS`: a senha de aplicativo do Gmail.
+3. Não troque `JWT_SECRET` nem `OTP_SECRET`, que a Render gera sozinha. A troca derruba todas as sessões e invalida os códigos pendentes.
+4. Antes de cada versão da API entrar no ar, as migrações são aplicadas (`preDeployCommand`). Isso inclui os dados de referência: tipos de gatilho, CNAEs e municípios iniciais.
+5. Para o primeiro acesso do administrador, abra a aba **Shell** do `momint-api` e rode, na raiz do projeto (`/opt/render/project/src`):
+   - `npm run admin:preparar -w apps/api`
+   - `cat .acesso-admin/primeiro-acesso.txt`
+
+   O link vale 24 horas, e o arquivo desaparece na publicação seguinte. Depois disso, os clientes são cadastrados pelo painel do administrador.
+6. Para usar um domínio próprio, adicione-o em **Settings → Custom Domains** do `momint-web` e troque `URL_WEB` pelo novo endereço.
+
+O banco não aceita conexões de fora da Render (`ipAllowList: []`). Para copiar dados do banco local:
+
+1. Libere temporariamente o seu IP em **Networking** do `momint-db`.
+2. Rode `pg_dump` e `pg_restore` com a URL externa do banco.
+3. Retire a liberação.
+
+A API só recebe tráfego pela interface. Por isso os limites de requisição usam o IP do visitante (`CF-Connecting-IP` ou o primeiro endereço de `X-Forwarded-For`), e não o IP do proxy.
