@@ -23,8 +23,8 @@ export class EventoRepository {
     return this.db.eventoDeGatilho.findUnique({ where: { id } });
   }
 
-  listarComEmpresa() {
-    return this.db.eventoDeGatilho.findMany({ include: { empresa: true, tipo: true }, orderBy: { detectadoEm: "desc" } });
+  listarComEmpresa(clienteId: string) {
+    return this.db.eventoDeGatilho.findMany({ where: { OR: [{ NOT: { externalId: { startsWith: "DEMO:" } } }, { externalId: { startsWith: "DEMO:" }, leads: { some: { clienteId, cliente: { demonstrativo: true } } } }] }, include: { empresa: true, tipo: true }, orderBy: { detectadoEm: "desc" } });
   }
 
   listarDasEmpresas(empresaIds: string[]) {

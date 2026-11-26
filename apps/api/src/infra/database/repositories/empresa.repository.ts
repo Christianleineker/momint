@@ -18,8 +18,9 @@ export class EmpresaRepository {
     return this.db.empresaAlvo.findUnique({ where: { cnpj } });
   }
 
-  listarComEventos() {
-    return this.db.empresaAlvo.findMany({ include: { eventos: { include: { tipo: true } } } });
+  listarComEventos(clienteId: string) {
+    const visivel = { OR: [{ NOT: { externalId: { startsWith: "DEMO:" } } }, { externalId: { startsWith: "DEMO:" }, leads: { some: { clienteId, cliente: { demonstrativo: true } } } }] };
+    return this.db.empresaAlvo.findMany({ where: { eventos: { some: visivel } }, include: { eventos: { where: visivel, include: { tipo: true } } } });
   }
 
   /** Contatos cadastrados pelo time vêm antes dos tirados do QSA público. */

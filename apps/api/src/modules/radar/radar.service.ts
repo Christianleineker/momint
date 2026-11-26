@@ -90,7 +90,7 @@ export class RadarService {
     const icp = cliente.icp;
 
     const [empresas, leads, vendedores] = await Promise.all([
-      this.repos.empresas.listarComEventos(),
+      this.repos.empresas.listarComEventos(clienteId),
       this.repos.leads.listarParaProcessamento(clienteId),
       this.repos.usuarios.listarVendedoresAtivos(clienteId),
     ]);
@@ -147,7 +147,7 @@ export class RadarService {
     const icp = await this.repos.icp.buscarDoCliente(clienteId);
     if (!icp) return [];
     if (!icp.cnaes.length || !icp.portes.length || !icp.cidadeBase) return [];
-    const [eventos, leads] = await Promise.all([this.repos.eventos.listarComEmpresa(), this.repos.leads.listarResumo(clienteId)]);
+    const [eventos, leads] = await Promise.all([this.repos.eventos.listarComEmpresa(clienteId), this.repos.leads.listarResumo(clienteId)]);
     const leadPorEmpresa = new Map(leads.map((l) => [l.empresaId, l]));
 
     const avaliados = eventos.map((ev) => {

@@ -11,7 +11,7 @@ export class GatilhosService {
   async listar(clienteId: string) {
     const [regras, ultimas, leads] = await Promise.all([
       this.repos.regrasGatilho.listarDoCliente(clienteId),
-      this.repos.regrasGatilho.ultimaDeteccaoPorFonte(),
+      this.repos.regrasGatilho.ultimaDeteccaoPorFonte(clienteId),
       this.repos.regrasGatilho.leadsPorFonte(clienteId),
     ]);
     return regras.map((r) => ({

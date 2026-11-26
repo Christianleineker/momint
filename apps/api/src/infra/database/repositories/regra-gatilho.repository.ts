@@ -41,8 +41,8 @@ export class RegraGatilhoRepository {
   }
 
   /** Data da detecção mais recente de cada fonte (eventos são compartilhados entre clientes). */
-  async ultimaDeteccaoPorFonte() {
-    const tipos = await this.db.tipoDeGatilho.findMany({ select: { codigo: true, eventos: { select: { detectadoEm: true }, orderBy: { detectadoEm: "desc" }, take: 1 } } });
+  async ultimaDeteccaoPorFonte(clienteId: string) {
+    const tipos = await this.db.tipoDeGatilho.findMany({ select: { codigo: true, eventos: { where: { OR: [{ NOT: { externalId: { startsWith: "DEMO:" } } }, { externalId: { startsWith: "DEMO:" }, leads: { some: { clienteId, cliente: { demonstrativo: true } } } }] }, select: { detectadoEm: true }, orderBy: { detectadoEm: "desc" }, take: 1 } } });
     return new Map(tipos.filter((t) => t.eventos.length).map((t) => [t.codigo, t.eventos[0].detectadoEm] as const));
   }
 
