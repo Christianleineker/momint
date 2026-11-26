@@ -1,7 +1,7 @@
 // Perfil de Cliente Ideal (Filtro e Segmentação). Salvar reprocessa o match.
 import type { Repositorios } from "../../infra/database/repositories/index.js";
 import type { Geocodificador } from "../../ports/geocodificador.js";
-import { EntradaInvalida, NaoEncontrado } from "../../shared/erros.js";
+import { EntradaInvalida } from "../../shared/erros.js";
 import type { RadarService } from "../radar/radar.service.js";
 
 /** O radar cobre o Paraná (fontes filtradas por UF): a cidade-base é uma cidade do estado. */
@@ -25,8 +25,12 @@ export class IcpService {
   ) {}
 
   async obter(clienteId: string) {
-    const icp = await this.repos.icp.buscarDoCliente(clienteId);
-    if (!icp) throw new NaoEncontrado("Perfil de ICP não configurado");
+    // Instalações novas precisam conseguir abrir o formulário antes do primeiro cadastro.
+    const icp = await this.repos.icp.buscarDoCliente(clienteId) ?? {
+      cnaes: [], portes: [], cidadeBase: "", ufBase: UF_ATENDIDA,
+      latBase: 0, lngBase: 0, raioKm: 40, idadeMinAnos: 0, idadeMaxAnos: 50,
+      situacaoExigida: "ATIVA", fontesAtivas: [],
+    };
     const [catalogoCnae, cidades] = await Promise.all([this.repos.cnaes.listar(), this.geo.municipios(UF_ATENDIDA)]);
     return { icp, catalogoCnae, cidades };
   }

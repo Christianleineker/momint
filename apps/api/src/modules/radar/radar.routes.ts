@@ -13,8 +13,7 @@ export const radarRoutes =
 
     app.post("/radar/sincronizar", { preHandler: exigirPapel("ADMIN", "GESTOR") }, async (req) => {
       if (req.user.papel === "ADMIN") return radar.sincronizar();
-      await radar.ingerirFontes();
-      return radar.processarCliente(req.user.clienteId);
+      return radar.sincronizar(req.user.clienteId);
     });
 
     app.post("/radar/:eventoId/fila", async (req) => {

@@ -8,7 +8,7 @@ export class PerfilIcpRepository {
     return this.db.perfilICP.findUnique({ where: { clienteId } });
   }
 
-  atualizarDoCliente(clienteId: string, dados: Prisma.PerfilICPUpdateInput) {
-    return this.db.perfilICP.update({ where: { clienteId }, data: dados });
+  atualizarDoCliente(clienteId: string, dados: Omit<Prisma.PerfilICPUncheckedCreateInput, "clienteId">) {
+    return this.db.perfilICP.upsert({ where: { clienteId }, create: { clienteId, ...dados }, update: dados });
   }
 }

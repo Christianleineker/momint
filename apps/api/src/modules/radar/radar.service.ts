@@ -36,7 +36,7 @@ export class RadarService {
   ) {}
 
   /** Varre as fontes e grava EmpresaAlvo + EventoDeGatilho (camada compartilhada). */
-  async ingerirFontes() {
+  async ingerirFontes(fontesAtivas?: readonly string[]) {
     const hoje = this.relogio.agora();
     const desde = new Date(hoje.getTime() - HORIZONTE_INGESTAO_DIAS * DIA_MS);
     const tipos = await this.repos.eventos.tiposPorCodigo();
@@ -44,7 +44,8 @@ export class RadarService {
     const fontesIndisponiveis: string[] = [];
 
     // Uma fonte fora do ar (ou sem integração disponível) não impede as outras.
-    const varrer = async (fonte: string, tarefa: () => Promise<void>) => {
+    const varrer = async (fonte: string, codigo: string, tarefa: () => Promise<void>) => {
+      if (fontesAtivas && !fontesAtivas.includes(codigo)) return;
       try {
         await tarefa();
       } catch (e) {
@@ -52,7 +53,7 @@ export class RadarService {
       }
     };
 
-    await varrer("CNO", async () => {
+    await varrer("CNO", "CNO", async () => {
       for (const obra of await this.fontes.cno.obrasRegistradas(desde, "PR")) {
         const cadastro = await this.fontes.cnpj.buscar(obra.niResponsavel);
         if (!cadastro) continue;
@@ -60,7 +61,7 @@ export class RadarService {
         eventosProcessados++;
       }
     });
-    await varrer("PNCP", async () => {
+    await varrer("PNCP", "PNCP", async () => {
       const licitacoes = (await this.fontes.pncp.contratacoesPublicadas(desde, hoje)).filter((l) => l.cnpjInteressado);
       const cadastros = await this.cadastrosCnpj(licitacoes.map((l) => l.cnpjInteressado));
       for (const lic of licitacoes) {
@@ -72,7 +73,7 @@ export class RadarService {
         eventosProcessados++;
       }
     });
-    await varrer("CNPJ novo", async () => {
+    await varrer("CNPJ novo", "CNPJ_NOVO", async () => {
       for (const cadastro of await this.fontes.cnpj.novasEmpresas(desde)) {
         await this.registrar(tipos, "CNPJ_NOVO", cadastro, `CNPJ_NOVO:${cadastro.cnpj}`, new Date(`${cadastro.data_inicio_atividade}T12:00:00Z`), cadastro);
         eventosProcessados++;
@@ -128,10 +129,13 @@ export class RadarService {
     return { criados, atualizados };
   }
 
-  async sincronizar() {
-    const ingestao = await this.ingerirFontes();
+  async sincronizar(clienteId?: string) {
+    const clientes = clienteId ? [{ id: clienteId }] : await this.repos.clientes.listarIds();
+    const perfis = await Promise.all(clientes.map(({ id }) => this.repos.icp.buscarDoCliente(id)));
+    const fontesAtivas = [...new Set(perfis.flatMap((perfil) => perfil?.fontesAtivas ?? []))];
+    const ingestao = await this.ingerirFontes(fontesAtivas);
     const porCliente = [];
-    for (const { id } of await this.repos.clientes.listarIds()) {
+    for (const { id } of clientes) {
       porCliente.push({ clienteId: id, ...(await this.processarCliente(id)) });
     }
     return { ...ingestao, porCliente };
@@ -141,7 +145,7 @@ export class RadarService {
   async listar(clienteId: string) {
     const hoje = this.relogio.agora();
     const icp = await this.repos.icp.buscarDoCliente(clienteId);
-    if (!icp) throw new NaoEncontrado("Perfil de ICP não configurado");
+    if (!icp) return [];
     if (!icp.cnaes.length || !icp.portes.length || !icp.cidadeBase) return [];
     const [eventos, leads] = await Promise.all([this.repos.eventos.listarComEmpresa(), this.repos.leads.listarResumo(clienteId)]);
     const leadPorEmpresa = new Map(leads.map((l) => [l.empresaId, l]));

@@ -64,8 +64,11 @@ export default function GatilhosPage() {
     try {
       const r = await enviar<{ eventosProcessados: number; fontesIndisponiveis?: string[] }>("/api/radar/sincronizar", "POST");
       await Promise.all(["/api/radar", "/api/gatilhos", "/api/leads", "/api/dashboard"].map((chave) => recarregarChave(chave)));
-      alerta.sucesso(r.eventosProcessados ? "Radar sincronizado: " + r.eventosProcessados + " eventos das fontes públicas." : "Radar sincronizado. Nenhum evento novo nas fontes públicas.");
-      if (r.fontesIndisponiveis?.length) alerta.erro("Fontes indisponíveis: " + r.fontesIndisponiveis.join("; ") + ".", { titulo: "Atenção", duracao: 12000 });
+      if (r.fontesIndisponiveis?.length) {
+        alerta.erro(`${r.eventosProcessados ?? 0} eventos processados. Fontes não consultadas: ${r.fontesIndisponiveis.join("; ")}. Os eventos existentes foram mantidos.`, { titulo: "Sincronização incompleta", duracao: 12000 });
+      } else {
+        alerta.sucesso(r.eventosProcessados ? "Radar sincronizado: " + r.eventosProcessados + " eventos das fontes públicas." : "Radar sincronizado. Nenhum evento novo nas fontes públicas.");
+      }
     } catch (e) {
       alerta.falha(e, "Não foi possível sincronizar o radar.");
     } finally {
@@ -125,7 +128,7 @@ export default function GatilhosPage() {
       && (!eventoTipo || e.tipo === eventoTipo) && (!eventoPrioridade || e.prioridade === eventoPrioridade))
     .sort((a, b) => (a.status === "APTO" ? 0 : 1) - (b.status === "APTO" ? 0 : 1) || b.score - a.score || a.diasDecorridos - b.diasDecorridos);
 
-  const carregandoRadar = !radar.data;
+  const valorMetrica = (valor: number) => radar.data ? String(valor) : radar.isLoading ? "..." : "—";
   const noPerfil = eventos.filter((e) => e.status === "APTO").length;
   const altaPrioridade = eventos.filter((e) => e.prioridade === "ALTA").length;
   const novosSemana = eventos.filter((e) => e.diasDecorridos <= 7).length;
@@ -147,10 +150,10 @@ export default function GatilhosPage() {
         acoes={podeGerir && <><Botao variante="secundario" disabled={sincronizando} onClick={() => void sincronizar()}><RefreshCw className={sincronizando ? "h-4 w-4 animate-spin" : "h-4 w-4"} /> {sincronizando ? "Sincronizando..." : "Sincronizar radar"}</Botao><Botao disabled={!regras.data || !equipe.data} onClick={novoGatilho}><Plus className="h-4 w-4" /> Novo gatilho</Botao></>}
       />
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metrica icone={Zap} rotulo="Gatilhos no perfil" valor={carregandoRadar ? "..." : String(noPerfil)} detalhe="eventos dentro da segmentação" tom="azul" />
-        <Metrica icone={AlertTriangle} rotulo="Prioridade alta" valor={carregandoRadar ? "..." : String(altaPrioridade)} tom="vermelho" />
-        <Metrica icone={Clock} rotulo="Novos nesta semana" valor={carregandoRadar ? "..." : String(novosSemana)} detalhe="detectados nos últimos 7 dias" tom="verde" />
-        <Metrica icone={Layers} rotulo="Empresas com gatilhos empilhados" valor={carregandoRadar ? "..." : String(empilhadas)} tom="roxo" />
+        <Metrica icone={Zap} rotulo="Gatilhos no perfil" valor={valorMetrica(noPerfil)} detalhe="eventos dentro da segmentação" tom="azul" />
+        <Metrica icone={AlertTriangle} rotulo="Prioridade alta" valor={valorMetrica(altaPrioridade)} tom="vermelho" />
+        <Metrica icone={Clock} rotulo="Novos nesta semana" valor={valorMetrica(novosSemana)} detalhe="detectados nos últimos 7 dias" tom="verde" />
+        <Metrica icone={Layers} rotulo="Empresas com gatilhos empilhados" valor={valorMetrica(empilhadas)} tom="roxo" />
       </div>
       <div className="mb-5 flex gap-6 border-b border-slate-200" role="tablist" aria-label="Visualizações de gatilhos">
         {[{ id: "eventos", nome: "Radar de eventos" }, { id: "gatilhos", nome: "Meus gatilhos" }].map(({ id, nome }) => (
