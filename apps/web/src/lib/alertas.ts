@@ -2,7 +2,7 @@
  *  cliente, sem hook: o componente <Alertas /> do layout raiz exibe as mensagens.
  *  Uso: alerta.sucesso("Salvo."), alerta.erro("...", { titulo: "Atenção", duracao: 10000 }),
  *  e no catch: alerta.falha(e, "Não foi possível salvar."). */
-export type TipoAlerta = "sucesso" | "erro";
+export type TipoAlerta = "sucesso" | "erro" | "aviso";
 export type OpcoesAlerta = {
   /** Título do cartão. Padrão: "Sucesso" ou "Erro". */
   titulo?: string;
@@ -22,6 +22,7 @@ function emitir(tipo: TipoAlerta, texto: string, opcoes: OpcoesAlerta = {}) {
 
 export const alerta = {
   sucesso: (texto: string, opcoes?: OpcoesAlerta) => emitir("sucesso", texto, opcoes),
+  aviso: (texto: string, opcoes?: OpcoesAlerta) => emitir("aviso", texto, opcoes),
   erro: (texto: string, opcoes?: OpcoesAlerta) => emitir("erro", texto, opcoes),
   /** Para usar no catch: mostra a mensagem do erro ou o texto padrão quando não houver uma útil. */
   falha: (erro: unknown, padrao = "Algo deu errado. Tente novamente.", opcoes?: OpcoesAlerta) =>

@@ -179,6 +179,7 @@ export class RadarService {
       const score = lead?.scorePrioridade ?? 0;
       return {
         id: ev.id,
+        demonstracao: ev.externalId.startsWith("DEMO:"),
         tipo: ev.tipo.codigo,
         tipoNome: ev.tipo.nome,
         resumo: ev.resumo,

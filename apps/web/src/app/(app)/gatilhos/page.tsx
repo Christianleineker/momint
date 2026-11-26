@@ -16,6 +16,7 @@ import { DialogoGatilho, MenuGatilho, type Acao, type DadosGatilho, type Dialogo
 /** Evento do radar (GET /api/radar): avaliado contra o perfil de cliente ideal do sistema. */
 type EventoRadar = {
   id: string;
+  demonstracao: boolean;
   tipo: string;
   resumo: string;
   detectadoEm: string;
@@ -65,7 +66,9 @@ export default function GatilhosPage() {
       const r = await enviar<{ eventosProcessados: number; fontesIndisponiveis?: string[] }>("/api/radar/sincronizar", "POST");
       await Promise.all(["/api/radar", "/api/gatilhos", "/api/leads", "/api/dashboard"].map((chave) => recarregarChave(chave)));
       if (r.fontesIndisponiveis?.length) {
-        alerta.erro(`${r.eventosProcessados ?? 0} eventos processados. Consulta incompleta: ${r.fontesIndisponiveis.join("; ")}. Os eventos existentes foram mantidos.`, { titulo: "Sincronização incompleta", duracao: 12000 });
+        const texto = `${r.eventosProcessados ?? 0} eventos processados. Consulta incompleta: ${r.fontesIndisponiveis.join("; ")}. Os eventos existentes foram mantidos.`;
+        if (r.eventosProcessados > 0) alerta.aviso(texto, { titulo: "Resultados parciais", duracao: 12000 });
+        else alerta.erro(texto, { titulo: "Sincronização incompleta", duracao: 12000 });
       } else {
         alerta.sucesso(r.eventosProcessados ? "Radar sincronizado: " + r.eventosProcessados + " eventos das fontes públicas." : "Radar sincronizado. Nenhum evento novo nas fontes públicas.");
       }
@@ -126,7 +129,7 @@ export default function GatilhosPage() {
   const eventosFiltrados = eventos
     .filter((e) => e.empresa.nome.toLocaleLowerCase("pt-BR").includes(eventoBusca.trim().toLocaleLowerCase("pt-BR"))
       && (!eventoTipo || e.tipo === eventoTipo) && (!eventoPrioridade || e.prioridade === eventoPrioridade))
-    .sort((a, b) => (a.status === "APTO" ? 0 : 1) - (b.status === "APTO" ? 0 : 1) || b.score - a.score || a.diasDecorridos - b.diasDecorridos);
+    .sort((a, b) => Number(b.demonstracao) - Number(a.demonstracao) || (a.status === "APTO" ? 0 : 1) - (b.status === "APTO" ? 0 : 1) || b.score - a.score || a.diasDecorridos - b.diasDecorridos);
 
   const valorMetrica = (valor: number) => radar.data ? String(valor) : radar.isLoading ? "..." : "—";
   const noPerfil = eventos.filter((e) => e.status === "APTO").length;
@@ -251,6 +254,7 @@ export default function GatilhosPage() {
                         <tr key={e.id} className={`transition hover:bg-blue-50/40 ${e.gatilhosEmpilhados >= 2 ? "bg-red-50/40" : ""}`}>
                           <td className="px-4 py-3">
                             <p className="font-semibold text-navy">{e.empresa.nome}</p>
+                            <p className="text-xs font-medium text-slate-500">{e.demonstracao ? "Exemplo fictício" : "Fonte pública"}</p>
                             <p className="text-xs text-slate-500">{e.empresa.municipio}/{e.empresa.uf}</p>
                             <p className="mt-0.5 max-w-64 text-xs leading-4 text-slate-500">{e.resumo}</p>
                           </td>

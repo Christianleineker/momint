@@ -5,8 +5,8 @@ import { AlertCircle, CheckCircle2, X } from "lucide-react";
 import { alerta as alertar, ouvirAlertas, type Alerta } from "@/lib/alertas";
 import { mensagemDeValidacao } from "@/lib/validacao";
 
-const DURACAO = { sucesso: 4000, erro: 7000 } as const;
-const TITULO = { sucesso: "Sucesso", erro: "Erro" } as const;
+const DURACAO = { sucesso: 4000, erro: 7000, aviso: 10000 } as const;
+const TITULO = { sucesso: "Sucesso", erro: "Erro", aviso: "Aviso" } as const;
 
 /** Exibe os alertas do serviço `alerta` no canto inferior direito, acima do botão de suporte.
  *  Fica na camada superior do navegador (popover) para aparecer inclusive sobre modais.
@@ -58,17 +58,18 @@ export function Alertas() {
     >
       {alertas.map((a) => {
         const sucesso = a.tipo === "sucesso";
+        const aviso = a.tipo === "aviso";
         return (
           <div
             key={a.id}
-            role={sucesso ? "status" : "alert"}
-            className={`alerta-entrar pointer-events-auto flex items-start gap-3 rounded-xl border border-l-4 bg-white px-4 py-3 text-sm shadow-lg ${sucesso ? "border-emerald-200 border-l-emerald-500" : "border-red-200 border-l-red-500"}`}
+            role={a.tipo === "erro" ? "alert" : "status"}
+            className={`alerta-entrar pointer-events-auto flex items-start gap-3 rounded-xl border border-l-4 bg-white px-4 py-3 text-sm shadow-lg ${sucesso ? "border-emerald-200 border-l-emerald-500" : aviso ? "border-amber-200 border-l-amber-500" : "border-red-200 border-l-red-500"}`}
           >
             {sucesso
               ? <CheckCircle2 aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
-              : <AlertCircle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />}
+              : <AlertCircle aria-hidden="true" className={`mt-0.5 h-5 w-5 shrink-0 ${aviso ? "text-amber-600" : "text-red-500"}`} />}
             <div className="min-w-0 flex-1">
-              <p className={`font-semibold ${sucesso ? "text-emerald-700" : "text-red-700"}`}>{a.titulo ?? TITULO[a.tipo]}</p>
+              <p className={`font-semibold ${sucesso ? "text-emerald-700" : aviso ? "text-amber-700" : "text-red-700"}`}>{a.titulo ?? TITULO[a.tipo]}</p>
               <p className="mt-0.5 break-words leading-5 text-slate-600">{a.texto}</p>
             </div>
             <button type="button" aria-label="Fechar alerta" onClick={() => fechar(a.id)} className="shrink-0 rounded p-0.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
