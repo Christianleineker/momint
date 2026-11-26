@@ -10,7 +10,7 @@ export interface FonteCnpj {
 
 export interface FontePncp {
   /** Licitações de obra com resultado no período, com o CNPJ vencedor em `cnpjInteressado`. */
-  contratacoesPublicadas(desde: Date, ate: Date): Promise<PncpContratacao[]>;
+  contratacoesPublicadas(desde: Date, ate: Date): Promise<PncpContratacao[] & { avisos?: string[] }>;
 }
 
 export interface FonteCno {

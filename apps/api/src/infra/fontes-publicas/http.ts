@@ -50,9 +50,10 @@ function urlAtualizacoes(desde: Date, ate: Date, modalidade: number, pagina: num
 
 /** Contratações da modalidade atualizadas no período, só das páginas mais recentes.
  *  Uma página por vez: a API pública limita requisições em paralelo. */
-async function atualizacoesRecentes(desde: Date, ate: Date, modalidade: number, limite: AbortSignal) {
+async function atualizacoesRecentes(desde: Date, ate: Date, modalidade: number, limite: AbortSignal, avisos: string[]) {
   const primeira = await lerJson<PaginaPncp>(urlAtualizacoes(desde, ate, modalidade, 1), "PNCP", limite);
   const total = primeira?.totalPaginas ?? 1;
+  if (total > PAGINAS_RECENTES + 1) avisos.push(`modalidade ${modalidade}: apenas páginas recentes foram consultadas`);
   const contratacoes = [...(primeira?.data ?? [])];
   for (let pagina = total; pagina > Math.max(1, total - PAGINAS_RECENTES); pagina--) {
     contratacoes.push(...((await lerJson<PaginaPncp>(urlAtualizacoes(desde, ate, modalidade, pagina), "PNCP", limite))?.data ?? []));
@@ -61,7 +62,7 @@ async function atualizacoesRecentes(desde: Date, ate: Date, modalidade: number, 
 }
 
 /** Resultado homologado do 1º item: quem venceu (pessoa jurídica), quando e por quanto. */
-async function resultado(c: PncpAtualizacao, limite: AbortSignal): Promise<PncpContratacao["resultado"] | null> {
+async function resultado(c: PncpAtualizacao, limite: AbortSignal, avisos: string[]): Promise<PncpContratacao["resultado"] | null> {
   const url = `https://pncp.gov.br/api/pncp/v1/orgaos/${c.orgaoEntidade.cnpj}/compras/${c.anoCompra}/${c.sequencialCompra}/itens/1/resultados`;
   try {
     const resposta = await lerJson<PncpResultado[] | PncpResultado>(url, "PNCP", limite);
@@ -74,7 +75,7 @@ async function resultado(c: PncpAtualizacao, limite: AbortSignal): Promise<PncpC
       dataResultado: r.dataResultado.slice(0, 10),
     };
   } catch {
-    if (limite.aborted) throw new Error("PNCP: tempo total de consulta excedido. Tente novamente mais tarde.");
+    avisos.push("alguns resultados de licitação não puderam ser consultados");
     return null; // resultado indisponível nesta licitação não interrompe a varredura
   }
 }
@@ -82,19 +83,32 @@ async function resultado(c: PncpAtualizacao, limite: AbortSignal): Promise<PncpC
 const pncpHttp: FontePncp = {
   /** Licitações de obra do PR homologadas recentemente, já com a empresa vencedora. */
   async contratacoesPublicadas(desde, ate) {
-    const limite = AbortSignal.timeout(90_000);
+    // Uma janela de 120 dias excede o tempo de resposta da API. Consulte o último
+    // dia completo; a cobertura limitada é reportada ao usuário, nunca omitida.
+    const ultimoDia = new Date(Date.UTC(ate.getUTCFullYear(), ate.getUTCMonth(), ate.getUTCDate() - 1));
+    const inicio = ultimoDia < desde ? desde : ultimoDia;
+    const fim = ultimoDia < desde ? ate : ultimoDia;
+    const avisos: string[] = [];
+    if (ymd(inicio) !== ymd(desde) || ymd(fim) !== ymd(ate)) avisos.push(`consulta limitada ao dia ${ymd(inicio)}; período anterior não verificado`);
+    const limite = AbortSignal.timeout(45_000);
     const atualizadas: PncpAtualizacao[] = [];
-    for (const modalidade of MODALIDADES_DE_OBRA) atualizadas.push(...(await atualizacoesRecentes(desde, ate, modalidade, limite)));
+    const consultas = await Promise.allSettled(MODALIDADES_DE_OBRA.map((modalidade) => atualizacoesRecentes(inicio, fim, modalidade, limite, avisos)));
+    consultas.forEach((consulta, i) => {
+      if (consulta.status === "fulfilled") atualizadas.push(...consulta.value);
+      else avisos.push(`modalidade ${MODALIDADES_DE_OBRA[i]} indisponível`);
+    });
     const unicas = new Map<string, PncpAtualizacao>();
     for (const c of atualizadas) {
       if (c.valorTotalHomologado != null && OBJETO_DE_OBRA.test(c.objetoCompra)) unicas.set(c.numeroControlePNCP, c);
     }
+    if (unicas.size > LIMITE_RESULTADOS) avisos.push(`somente ${LIMITE_RESULTADOS} licitações recentes foram verificadas`);
     const maisRecentes = [...unicas.values()]
       .sort((a, b) => b.dataAtualizacaoGlobal.localeCompare(a.dataAtualizacaoGlobal))
       .slice(0, LIMITE_RESULTADOS);
 
-    const resultados = await emLotes(maisRecentes, CONSULTAS_SIMULTANEAS, (c) => resultado(c, limite));
-    return maisRecentes.flatMap((c, i) => {
+    const limiteResultados = AbortSignal.timeout(60_000);
+    const resultados = await emLotes(maisRecentes, CONSULTAS_SIMULTANEAS, (c) => resultado(c, limiteResultados, avisos));
+    const licitacoes = maisRecentes.flatMap((c, i) => {
       const r = resultados[i];
       if (!r) return [];
       const licitacao: PncpContratacao = {
@@ -109,7 +123,9 @@ const pncpHttp: FontePncp = {
         resultado: r,
       };
       return [licitacao];
-    });
+    }) as PncpContratacao[] & { avisos?: string[] };
+    licitacoes.avisos = [...new Set(avisos)];
+    return licitacoes;
   },
 };
 

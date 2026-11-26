@@ -62,8 +62,13 @@ export class RadarService {
       }
     });
     await varrer("PNCP", "PNCP", async () => {
-      const licitacoes = (await this.fontes.pncp.contratacoesPublicadas(desde, hoje)).filter((l) => l.cnpjInteressado);
+      const consulta = await this.fontes.pncp.contratacoesPublicadas(desde, hoje);
+      if (consulta.avisos?.length) fontesIndisponiveis.push(`PNCP: ${consulta.avisos.join("; ")}`);
+      const licitacoes = consulta.filter((l) => l.cnpjInteressado);
       const cadastros = await this.cadastrosCnpj(licitacoes.map((l) => l.cnpjInteressado));
+      if (cadastros.size < new Set(licitacoes.map((l) => l.cnpjInteressado)).size) {
+        fontesIndisponiveis.push("Minha Receita: alguns cadastros de empresas não foram obtidos");
+      }
       for (const lic of licitacoes) {
         const cadastro = cadastros.get(lic.cnpjInteressado);
         if (!cadastro) continue;

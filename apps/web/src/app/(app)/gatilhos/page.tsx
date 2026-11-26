@@ -65,7 +65,7 @@ export default function GatilhosPage() {
       const r = await enviar<{ eventosProcessados: number; fontesIndisponiveis?: string[] }>("/api/radar/sincronizar", "POST");
       await Promise.all(["/api/radar", "/api/gatilhos", "/api/leads", "/api/dashboard"].map((chave) => recarregarChave(chave)));
       if (r.fontesIndisponiveis?.length) {
-        alerta.erro(`${r.eventosProcessados ?? 0} eventos processados. Fontes não consultadas: ${r.fontesIndisponiveis.join("; ")}. Os eventos existentes foram mantidos.`, { titulo: "Sincronização incompleta", duracao: 12000 });
+        alerta.erro(`${r.eventosProcessados ?? 0} eventos processados. Consulta incompleta: ${r.fontesIndisponiveis.join("; ")}. Os eventos existentes foram mantidos.`, { titulo: "Sincronização incompleta", duracao: 12000 });
       } else {
         alerta.sucesso(r.eventosProcessados ? "Radar sincronizado: " + r.eventosProcessados + " eventos das fontes públicas." : "Radar sincronizado. Nenhum evento novo nas fontes públicas.");
       }
