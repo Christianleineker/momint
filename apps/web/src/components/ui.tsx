@@ -26,7 +26,7 @@ export function Cabecalho({ titulo, subtitulo, acoes }: { titulo: string; subtit
         <h1 className="text-2xl font-semibold text-navy">{titulo}</h1>
         <p className="mt-1 text-sm text-slate-500">{subtitulo}</p>
       </div>
-      {acoes && <div className="flex gap-3">{acoes}</div>}
+      {acoes && <div className="flex max-w-full flex-wrap gap-3">{acoes}</div>}
     </header>
   );
 }
@@ -101,7 +101,7 @@ export function Botao({ children, variante = "primario", ...props }: React.Butto
     perigo: "border border-red-200 bg-white text-red-600 hover:bg-red-50",
   }[variante];
   return (
-    <button {...props} className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition ${cls} ${props.className ?? ""}`}>
+    <button {...props} className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento disabled:cursor-not-allowed disabled:opacity-50 ${cls} ${props.className ?? ""}`}>
       {children}
     </button>
   );
